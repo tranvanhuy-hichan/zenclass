@@ -2,6 +2,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
+import { seedStaff } from "./staff-demo";
 
 const db = new PrismaClient();
 let seed = 20261029;
@@ -41,7 +42,7 @@ async function main() {
   await db.$transaction([
     db.notification.deleteMany(), db.pushSub.deleteMany(), db.gradeValue.deleteMany(), db.attendance.deleteMany(), db.payment.deleteMany(), db.invoiceItem.deleteMany(), db.invoice.deleteMany(),
     db.enrollment.deleteMany(), db.session.deleteMany(), db.classSchedule.deleteMany(), db.class.deleteMany(), db.gradeColumn.deleteMany(), db.gradeTemplate.deleteMany(),
-    db.remark.deleteMany(), db.material.deleteMany(), db.note.deleteMany(), db.expense.deleteMany(), db.payroll.deleteMany(), db.holiday.deleteMany(), db.auditLog.deleteMany(),
+    db.remark.deleteMany(), db.material.deleteMany(), db.note.deleteMany(), db.expense.deleteMany(), db.payroll.deleteMany(), db.assistant.deleteMany(), db.coordinator.deleteMany(), db.holiday.deleteMany(), db.auditLog.deleteMany(),
     db.student.deleteMany(), db.parent.deleteMany(), db.teacher.deleteMany(), db.room.deleteMany(), db.user.deleteMany({ where: { username: { not: "admin" } } }),
   ]);
 
@@ -302,6 +303,7 @@ async function main() {
   const notiUsers = studentUsers.slice(0, 40);
   await db.notification.createMany({ data: notiUsers.flatMap((u) => [{ userId: u.id, type: "REMIND", title: "Sắp đến giờ học", body: "Lớp học của bạn bắt đầu sau 60 phút.", read: chance(0.6) }, { userId: u.id, type: "ANNOUNCE", title: "Thông báo nghỉ lễ", body: "Trung tâm nghỉ ngày 20/11 nhân ngày Nhà giáo Việt Nam.", read: chance(0.3) }]) });
 
+  await seedStaff(db);
   console.log("XONG.");
   console.log({ giaoVien: teachers.length, phong: rooms.length, lop: classes.length, hocVien: students.length, phuHuynh: parents.length, ghiDanh: enr.length, diemDanh: attRows.length, diem: gvRows.length, hoaDon: invRows.length });
   console.log("Tài khoản demo (mật khẩu chung 123456): admin/admin123 · nv1 · giáo viên:", teacherUsers[0].username, "· học viên:", students[0].code, "· phụ huynh:", (parentUsers[0] as { username: string }).username);

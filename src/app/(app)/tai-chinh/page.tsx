@@ -14,7 +14,9 @@ const STL = { UNPAID: "Chưa đóng", PARTIAL: "Đóng một phần", PAID: "Đ�
 export default async function Finance({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; page?: string; size?: string }> }) {
   const me = await requireRole(...STAFF_ROLES);
   const sp = await searchParams;
-  const { tab = "debt", q } = sp;
+  const isAdminUser = me.role === "ADMIN";
+  const { q } = sp;
+  const tab = sp.tab === "expense" && !isAdminUser ? "debt" : sp.tab ?? "debt"; // chi phí (gồm tiền lương) chỉ Admin xem
   const pg = getPaging(sp);
   const today = todayUTC();
   const [students, classes] = await Promise.all([
@@ -59,7 +61,7 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
               <Field label="Ghi chú"><input name="note" className={inputCls + " w-full"} /></Field>
             </ActionForm></DialogButton>}
       </>}>Tài chính</Title>
-      <Tabs current={`?tab=${tab}`} items={[["?tab=debt", "Công nợ"], ["?tab=all", "Tất cả phiếu"], ["?tab=expense", "Chi phí"]]} />
+      <Tabs current={`?tab=${tab}`} items={isAdminUser ? [["?tab=debt", "Công nợ"], ["?tab=all", "Tất cả phiếu"], ["?tab=expense", "Chi phí"]] : [["?tab=debt", "Công nợ"], ["?tab=all", "Tất cả phiếu"]]} />
       {tab !== "expense" && (
         <>
           <form className="flex gap-2"><input type="hidden" name="tab" value={tab} /><input name="q" defaultValue={q} placeholder="Tìm mã phiếu / học viên..." className={inputCls + " flex-1"} /><button className="px-4 rounded-lg border bg-white text-sm">Tìm</button></form>
@@ -69,7 +71,7 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
               const late = i.dueDate && i.dueDate < today && ["UNPAID", "PARTIAL"].includes(i.status);
               return (
                 <tr key={i.id} className={late ? "bg-red-50" : ""}>
-                  <td><Link className="underline" href={`/tai-chinh/${i.id}`}>{i.code}</Link></td>
+                  <td><Link data-row className="underline" href={`/tai-chinh/${i.id}`}>{i.code}</Link></td>
                   <td>{i.student.fullName}</td><td>{fmtDate(i.issueDate)}</td><td>{fmtDate(i.dueDate)}{late && " ⚠"}</td>
                   <td>{fmtMoney(i.total)}</td><td>{fmtMoney(i.status === "VOID" ? 0 : i.total - i.paid)}</td><td>{STL[i.status]}</td>
                 </tr>

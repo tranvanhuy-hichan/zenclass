@@ -27,7 +27,7 @@ export default async function ClassDetail({ params, searchParams }: { params: Pr
   const tab = TABS.some(([k]) => k === sp.tab) ? sp.tab! : "overview";
   const pg = getPaging(sp, 15);
 
-  const c = await db.class.findUnique({ where: { id }, include: { schedules: true, gradeTemplate: { include: { columns: { orderBy: { order: "asc" } } } }, teacher: true, assistant: true, room: true } });
+  const c = await db.class.findUnique({ where: { id }, include: { schedules: true, gradeTemplate: { include: { columns: { orderBy: { order: "asc" } } } }, teacher: true, assistant: true, coordinator: true, room: true } });
   if (!c) notFound();
 
   const [activeCount, enrollTotal, done, planned, conflicts] = await Promise.all([
@@ -62,7 +62,9 @@ export default async function ClassDetail({ params, searchParams }: { params: Pr
             <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
               <span>{scheduleText || "Chưa có lịch"}</span>
               <span>{fmtDate(c.startDate)} → {fmtDate(c.endDate)}</span>
-              <span>GV: <b>{c.teacher?.fullName ?? "-"}</b>{c.assistant ? ` · TG: ${c.assistant.fullName}` : ""}</span>
+              <span>GV: <b>{c.teacher?.fullName ?? "-"}</b></span>
+              <span>Trợ giảng: <b>{c.assistant?.fullName ?? "-"}</b></span>
+              <span>Giáo vụ: <b>{c.coordinator?.fullName ?? "-"}</b></span>
               <span>Phòng: <b>{c.room?.name ?? "-"}</b></span>
             </div>
           </div>
@@ -155,7 +157,7 @@ export default async function ClassDetail({ params, searchParams }: { params: Pr
                 const left = e.totalSessions - e.usedSessions;
                 return (
                   <tr key={e.id}>
-                    <td><Link className="font-medium text-orange-700 hover:underline" href={`/hoc-vien/${e.studentId}`}>{e.student.fullName}</Link> <span className="text-xs text-slate-500">{e.student.code}</span></td>
+                    <td><Link data-row className="font-medium text-orange-700 hover:underline" href={`/hoc-vien/${e.studentId}`}>{e.student.fullName}</Link> <span className="text-xs text-slate-500">{e.student.code}</span></td>
                     <td className="whitespace-nowrap">{e.usedSessions}/{e.totalSessions}{e.status === "ACTIVE" && left <= 3 && <span className="ml-1 rounded-full bg-yellow-100 px-1.5 text-[11px] text-yellow-800">còn {Math.max(left, 0)}</span>}</td>
                     <td>{EN[e.status]}</td>
                     <td>
@@ -230,7 +232,7 @@ export default async function ClassDetail({ params, searchParams }: { params: Pr
                 const total = computeTotal(t, cols, v);
                 return (
                   <tr key={e.id}>
-                    <td><Link href={`/hoc-vien/${e.studentId}?tab=grades`} className="text-orange-700 hover:underline">{e.student.fullName}</Link></td>
+                    <td><Link data-row href={`/hoc-vien/${e.studentId}?tab=grades`} className="text-orange-700 hover:underline">{e.student.fullName}</Link></td>
                     {cols.map((x) => <td key={x.id}>{v[x.id] ?? "-"}</td>)}
                     <td className="font-bold">{total ?? "-"}</td><td>{rankOf(total, t.ranks)}</td>
                   </tr>
@@ -244,8 +246,8 @@ export default async function ClassDetail({ params, searchParams }: { params: Pr
 
       {/* ===== Thông tin & Lịch ===== */}
       {tab === "settings" && await (async () => {
-        const [teachers, rooms, templates] = await Promise.all([
-          db.teacher.findMany({ orderBy: { fullName: "asc" } }), db.room.findMany({ orderBy: { name: "asc" } }), db.gradeTemplate.findMany({ orderBy: { name: "asc" } }),
+        const [teachers, assistants, coordinators, rooms, templates] = await Promise.all([
+          db.teacher.findMany({ orderBy: { fullName: "asc" } }), db.assistant.findMany({ orderBy: { fullName: "asc" } }), db.coordinator.findMany({ orderBy: { fullName: "asc" } }), db.room.findMany({ orderBy: { name: "asc" } }), db.gradeTemplate.findMany({ orderBy: { name: "asc" } }),
         ]);
         const sched = c.schedules[0];
         return (
@@ -254,8 +256,8 @@ export default async function ClassDetail({ params, searchParams }: { params: Pr
               <h2 className="mb-3 font-semibold">Thông tin lớp</h2>
               <ActionForm action={updateClass} submit="Lưu thông tin lớp" reset={false} className="flex flex-col gap-4 [&>button]:self-start">
                 <input type="hidden" name="id" value={c.id} />
-                <ClassFormFields edit withSchedule={false} teachers={teachers} rooms={rooms} templates={templates}
-                  defaults={{ name: c.name, mode: c.mode, teacherId: c.teacherId, assistantId: c.assistantId, roomId: c.roomId, maxStudents: c.maxStudents, tuitionFee: c.tuitionFee, finished: c.finished, gradeTemplateId: c.gradeTemplateId }} />
+                <ClassFormFields edit withSchedule={false} showRate={me.role === "ADMIN"} teachers={teachers} assistants={assistants} coordinators={coordinators} rooms={rooms} templates={templates}
+                  defaults={{ name: c.name, mode: c.mode, teacherId: c.teacherId, assistantId: c.assistantId, coordinatorId: c.coordinatorId, billing: c.billing, teacherRate: c.teacherRate, roomId: c.roomId, maxStudents: c.maxStudents, tuitionFee: c.tuitionFee, finished: c.finished, gradeTemplateId: c.gradeTemplateId }} />
               </ActionForm>
             </Card>
             <Card>

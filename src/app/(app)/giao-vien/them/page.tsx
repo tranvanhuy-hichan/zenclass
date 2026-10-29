@@ -6,11 +6,11 @@ import { TeacherFields } from "@/components/person-fields";
 import { createTeacher } from "../actions";
 
 export default async function NewTeacher() {
-  await requireRole(...STAFF_ROLES);
+  const me = await requireRole(...STAFF_ROLES);
   return (
     <div className=" space-y-4">
       <Title right={<Link href="/giao-vien" className="text-sm underline">← Danh sách giáo viên</Link>}>Thêm giáo viên</Title>
-      <ActionForm action={createTeacher} submit="Lưu giáo viên" className="space-y-4 w-full"><TeacherFields create /></ActionForm>
+      <ActionForm action={createTeacher} submit="Lưu giáo viên" className="space-y-4 w-full"><TeacherFields create showPay={me.role === "ADMIN"} /></ActionForm>
     </div>
   );
 }

@@ -1,7 +1,5 @@
-import { HeadSkeleton, ToolbarSkeleton, TableSkeleton } from "@/components/skeleton";
+import { HeadSkeleton, ToolbarSkeleton, CardsSkeleton } from "@/components/skeleton";
 
 export default function Loading() {
-  return (
-    <div><HeadSkeleton /><ToolbarSkeleton /><TableSkeleton rows={10} cols={6} /></div>
-  );
+  return <div><HeadSkeleton /><ToolbarSkeleton /><CardsSkeleton n={8} cols="md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" /></div>;
 }

@@ -26,6 +26,9 @@ export const createClass = wrap(async (fd) => {
       mode: str(fd, "mode") === "ONLINE" ? "ONLINE" : "OFFLINE",
       teacherId: opt(fd, "teacherId"),
       assistantId: opt(fd, "assistantId"),
+      coordinatorId: opt(fd, "coordinatorId"),
+      billing: str(fd, "billing") === "MONTHLY" ? "MONTHLY" : "ONCE",
+      ...(me.role === "ADMIN" ? { teacherRate: str(fd, "teacherRate") ? int(fd, "teacherRate") : null } : {}),
       roomId: opt(fd, "roomId"),
       startDate: parseDate(str(fd, "startDate")),
       totalSessions: int(fd, "totalSessions", 24),
@@ -35,10 +38,10 @@ export const createClass = wrap(async (fd) => {
       schedules: { create: readSchedules(fd) },
     },
   });
-  const warns = await generateSessions(c.id);
+  await generateSessions(c.id);
   await audit(me.id, "create", "Class", c.id);
   revalidatePath("/lop-hoc");
-  return { ok: `Đã tạo lớp.${warns.length ? "\n⚠ " + warns.join("\n⚠ ") : ""}` };
+  redirect(`/lop-hoc/${c.id}`);
 });
 
 export const updateClass = wrap(async (fd) => {
@@ -51,6 +54,9 @@ export const updateClass = wrap(async (fd) => {
       mode: str(fd, "mode") === "ONLINE" ? "ONLINE" : "OFFLINE",
       teacherId: opt(fd, "teacherId"),
       assistantId: opt(fd, "assistantId"),
+      coordinatorId: opt(fd, "coordinatorId"),
+      billing: str(fd, "billing") === "MONTHLY" ? "MONTHLY" : "ONCE",
+      ...(me.role === "ADMIN" ? { teacherRate: str(fd, "teacherRate") ? int(fd, "teacherRate") : null } : {}),
       roomId: opt(fd, "roomId"),
       maxStudents: int(fd, "maxStudents", 20),
       tuitionFee: int(fd, "tuitionFee"),
@@ -60,7 +66,9 @@ export const updateClass = wrap(async (fd) => {
   });
   // GV/phòng mới áp dụng cho các buổi chưa dạy
   const c = await db.class.findUniqueOrThrow({ where: { id } });
-  await db.session.updateMany({ where: { classId: id, status: "PLANNED" }, data: { teacherId: c.teacherId, roomId: c.roomId } });
+  // đổi GV/phòng của lớp: chỉ áp cho buổi chưa dạy và KHÔNG ghi đè các buổi đã phân công dạy thế
+  await db.session.updateMany({ where: { classId: id, status: "PLANNED", originalTeacherId: null }, data: { teacherId: c.teacherId } });
+  await db.session.updateMany({ where: { classId: id, status: "PLANNED" }, data: { roomId: c.roomId } });
   await audit(me.id, "update", "Class", id);
   revalidatePath(`/lop-hoc/${id}`);
 });
@@ -171,7 +179,12 @@ export const updateSession = wrap(async (fd) => {
   const same = await db.session.findMany({ where: { id: { not: id }, date, status: { not: "CANCELLED" } }, include: { class: true } });
   const bad = same.find((o) => overlaps(startTime, endTime, o.startTime, o.endTime) && ((teacherId && o.teacherId === teacherId) || (roomId && o.roomId === roomId)));
   if (bad) throw new Error(`Trùng giáo viên/phòng với lớp "${bad.class.name}"`);
-  await db.session.update({ where: { id }, data: { date, startTime, endTime, teacherId, roomId } });
+  // đổi giáo viên của 1 buổi so với GV của lớp = dạy thế (tính lương cho GV mới)
+  const cls = await db.class.findUniqueOrThrow({ where: { id: s.classId } });
+  const changed = teacherId !== s.teacherId;
+  const original = s.originalTeacherId ?? s.teacherId ?? cls.teacherId;
+  const sub = changed ? (teacherId && teacherId !== original ? original : null) : s.originalTeacherId;
+  await db.session.update({ where: { id }, data: { date, startTime, endTime, teacherId, roomId, ...(changed ? { originalTeacherId: sub, ...(sub ? {} : { substituteReason: null, payAmount: null }) } : {}) } });
   revalidatePath("/lich-hoc");
   revalidatePath(`/lop-hoc/${s.classId}`);
 });

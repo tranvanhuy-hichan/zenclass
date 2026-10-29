@@ -39,20 +39,20 @@ export function GradeGrid({ classId, cols, tpl, students, initial }: { classId: 
     <form action={action} className="space-y-3">
       <input type="hidden" name="classId" value={classId} />
       <input type="hidden" name="rows" value={JSON.stringify(changed())} />
-      <div className="overflow-x-auto bg-white rounded-xl border">
-        <table className="w-full text-sm">
-          <thead className="bg-orange-50 text-left">
+      <div className="max-h-[calc(100vh-13rem)] overflow-auto rounded-xl border bg-white">
+        <table className="w-max min-w-full border-separate border-spacing-0 text-sm">
+          <thead className="text-left">
             <tr>
-              <th className="px-3 py-2">#</th><th className="px-3 py-2">Học viên</th>
-              {cols.map((c) => <th key={c.id} className="px-2 py-2 text-center">{c.name}<div className="text-[10px] font-normal text-gray-500">/{c.maxScore} · hs {c.weight} · <code>{c.key}</code></div></th>)}
-              <th className="px-3 py-2 text-center">Tổng</th><th className="px-3 py-2">Xếp loại</th>
+              <th className="sticky left-0 top-0 z-30 w-12 min-w-12 border-b bg-orange-50 px-3 py-2">#</th><th className="sticky left-12 top-0 z-30 w-64 min-w-64 border-b border-r bg-orange-50 px-3 py-2">Học viên</th>
+              {cols.map((c) => <th key={c.id} className="sticky top-0 z-20 min-w-28 border-b bg-orange-50 px-2 py-2 text-center">{c.name}<div className="text-[10px] font-normal text-gray-500">/{c.maxScore} · hs {c.weight} · <code>{c.key}</code></div></th>)}
+              <th className="sticky right-28 top-0 z-30 w-20 min-w-20 border-b border-l bg-orange-50 px-3 py-2 text-center">Tổng</th><th className="sticky right-0 top-0 z-30 w-28 min-w-28 border-b bg-orange-50 px-3 py-2">Xếp loại</th>
             </tr>
           </thead>
           <tbody>
             {rows.map(({ s, total, rank }, ri) => (
-              <tr key={s.id} className="border-t">
-                <td className="px-3 py-1 text-gray-500">{ri + 1}</td>
-                <td className="px-3 py-1 whitespace-nowrap">{s.name} <span className="text-xs text-gray-500">{s.code}</span></td>
+              <tr key={s.id} className="[&>td]:border-b">
+                <td className="sticky left-0 z-10 w-12 min-w-12 bg-white px-3 py-1 text-gray-500">{ri + 1}</td>
+                <td className="sticky left-12 z-10 w-64 min-w-64 whitespace-nowrap border-r bg-white px-3 py-1">{s.name} <span className="text-xs text-gray-500">{s.code}</span></td>
                 {cols.map((c, ci) => {
                   const k = `${s.id}|${c.id}`;
                   const n = parse(vals[k]);
@@ -73,14 +73,14 @@ export function GradeGrid({ classId, cols, tpl, students, initial }: { classId: 
                     </td>
                   );
                 })}
-                <td className="px-3 py-1 text-center font-bold text-orange-700">{total ?? "-"}</td>
-                <td className="px-3 py-1">{rank}</td>
+                <td className="sticky right-28 z-10 w-20 min-w-20 border-l bg-white px-3 py-1 text-center font-bold text-orange-700">{total ?? "-"}</td>
+                <td className="sticky right-0 z-10 w-28 min-w-28 bg-white px-3 py-1">{rank}</td>
               </tr>
             ))}
-            <tr className="border-t bg-orange-50 text-center text-xs">
-              <td colSpan={2} className="px-3 py-2 text-left font-medium">Trung bình lớp</td>
-              {cols.map((c) => <td key={c.id}>{colAvg(c)}</td>)}
-              <td className="font-bold">{classAvg}</td><td />
+            <tr className="text-center text-xs">
+              <td colSpan={2} className="sticky left-0 z-10 border-r bg-orange-50 px-3 py-2 text-left font-medium">Trung bình lớp</td>
+              {cols.map((c) => <td key={c.id} className="bg-orange-50">{colAvg(c)}</td>)}
+              <td className="sticky right-28 z-10 border-l bg-orange-50 font-bold">{classAvg}</td><td className="sticky right-0 z-10 bg-orange-50" />
             </tr>
           </tbody>
         </table>

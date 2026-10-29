@@ -9,11 +9,12 @@ const ST: Record<string, string> = { PRESENT: "Có mặt", LATE: "Muộn", ABSEN
 
 export type Section = "courses" | "calendar" | "attendance" | "grades" | "invoices";
 
-export async function StudentOverview({ studentId, invoiceBase, sections, attPaging }: {
-  studentId: string; invoiceBase: string; sections?: Section[];
+export async function StudentOverview({ studentId, invoiceBase, sections, attPaging, classId }: {
+  studentId: string; invoiceBase: string; sections?: Section[]; classId?: string;
   attPaging?: { page: number; size: number; path: string; params: Record<string, string | undefined>; pageKey: string };
 }) {
   const show = (k: Section) => !sections || sections.includes(k);
+  const attsF = <T extends { session: { classId: string } }>(a: T[]) => (classId ? a.filter((x) => x.session.classId === classId) : a);
   const [enrollments, atts, gradeClasses, remarks, invoices] = await Promise.all([
     db.enrollment.findMany({ where: { studentId }, include: { class: { include: { schedules: true, sessions: true } } }, orderBy: { startDate: "desc" } }),
     db.attendance.findMany({ where: { studentId }, include: { session: { include: { class: true } } }, orderBy: { session: { date: "desc" } } }),
@@ -60,7 +61,7 @@ export async function StudentOverview({ studentId, invoiceBase, sections, attPag
         {enrollments.map((e) => (
           <div key={e.id} className="text-sm">
             <b>{e.class.name}</b> · {e.class.schedules.map((s) => `${WEEKDAYS[s.weekday]} ${s.startTime}-${s.endTime}`).join(", ")} ·{" "}
-            đã học <b>{e.usedSessions}/{e.totalSessions}</b>, còn <b className="text-orange-600">{Math.max(e.totalSessions - e.usedSessions, 0)} buổi</b> · {e.status}
+            đã học <b>{e.usedSessions}/{e.totalSessions}</b>, còn <b className="text-orange-600">{Math.max(e.totalSessions - e.usedSessions, 0)} buổi</b> · {({ ACTIVE: "Đang học", PAUSED: "Bảo lưu", FINISHED: "Đã kết thúc", WAITING: "Chờ lớp", DROPPED: "Đã nghỉ" } as Record<string, string>)[e.status] ?? e.status}
           </div>
         ))}
         {!enrollments.length && <p className="text-sm text-gray-500">Chưa có lớp.</p>}
@@ -103,11 +104,11 @@ export async function StudentOverview({ studentId, invoiceBase, sections, attPag
       <Card>
         <h2 className="font-semibold mb-2">Điểm danh gần đây</h2>
         <Table head={["Ngày", "Lớp", "Trạng thái", "Ghi chú"]}>
-          {atts.slice(attPaging ? (attPaging.page - 1) * attPaging.size : 0, attPaging ? attPaging.page * attPaging.size : 20).map((a) => (
+          {attsF(atts).slice(attPaging ? (attPaging.page - 1) * attPaging.size : 0, attPaging ? attPaging.page * attPaging.size : 20).map((a) => (
             <tr key={a.id}><td>{fmtDate(a.session.date)}</td><td>{a.session.class.name}</td><td>{ST[a.status]}</td><td>{a.note}</td></tr>
           ))}
         </Table>
-        {attPaging && <Pagination total={atts.length} page={attPaging.page} size={attPaging.size} path={attPaging.path} params={attPaging.params} pageKey={attPaging.pageKey} />}
+        {attPaging && <Pagination total={attsF(atts).length} page={attPaging.page} size={attPaging.size} path={attPaging.path} params={attPaging.params} pageKey={attPaging.pageKey} />}
       </Card>
       )}
 

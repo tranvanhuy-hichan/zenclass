@@ -57,21 +57,23 @@ enum PayMethod {
 }
 
 model User {
-  id            String   @id @default(cuid())
-  username      String   @unique
+  id            String    @id @default(cuid())
+  username      String    @unique
   passwordHash  String
   role          Role
   fullName      String
-  mustChangePwd Boolean  @default(false)
-  isActive      Boolean  @default(true)
+  mustChangePwd Boolean   @default(false)
+  isActive      Boolean   @default(true)
   permissions   Json? // null = toàn quyền theo vai trò; mảng khoá quyền cho nhân viên
-  failedLogins  Int      @default(0)
+  failedLogins  Int       @default(0)
   lockedUntil   DateTime?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime  @default(now())
 
-  student Student?
-  teacher Teacher?
-  parent  Parent?
+  student     Student?
+  teacher     Teacher?
+  parent      Parent?
+  assistant   Assistant?
+  coordinator Coordinator?
 }
 
 model Parent {
@@ -88,28 +90,28 @@ model Parent {
 }
 
 model Student {
-  id        String   @id @default(cuid())
-  code      String   @unique
-  userId    String?  @unique
-  user      User?    @relation(fields: [userId], references: [id])
-  fullName  String
-  dob       DateTime?
-  phone     String?
-  address   String?
-  note      String?
-  dropped   Boolean  @default(false)
-  gender    String? // MALE | FEMALE | OTHER
-  email     String?
-  school    String?
-  gradeLevel String?
-  source    String?
+  id               String    @id @default(cuid())
+  code             String    @unique
+  userId           String?   @unique
+  user             User?     @relation(fields: [userId], references: [id])
+  fullName         String
+  dob              DateTime?
+  phone            String?
+  address          String?
+  note             String?
+  dropped          Boolean   @default(false)
+  gender           String? // MALE | FEMALE | OTHER
+  email            String?
+  school           String?
+  gradeLevel       String?
+  source           String?
   emergencyContact String?
-  avatarUrl String?
-  discountPct Int     @default(0)
-  discountNote String?
-  parentId  String?
-  parent    Parent?  @relation(fields: [parentId], references: [id])
-  createdAt DateTime @default(now())
+  avatarUrl        String?
+  discountPct      Int       @default(0)
+  discountNote     String?
+  parentId         String?
+  parent           Parent?   @relation(fields: [parentId], references: [id])
+  createdAt        DateTime  @default(now())
 
   enrollments Enrollment[]
   attendances Attendance[]
@@ -117,35 +119,35 @@ model Student {
 }
 
 model Teacher {
-  id       String  @id @default(cuid())
-  userId   String? @unique
-  user     User?   @relation(fields: [userId], references: [id])
-  fullName String
-  phone    String?
-  payType  String  @default("PER_SESSION")
-  payRate  Int     @default(0)
-  gender   String?
-  dob      DateTime?
-  email    String?
-  address  String?
-  idNumber String?
-  degree   String?
-  specialty String?
-  bankName String?
-  bankAccount String?
-  startDate DateTime?
-  note     String?
-  avatarUrl String?
+  id             String    @id @default(cuid())
+  userId         String?   @unique
+  user           User?     @relation(fields: [userId], references: [id])
+  fullName       String
+  phone          String?
+  payType        String    @default("PER_SESSION")
+  payRate        Int       @default(0)
+  gender         String?
+  dob            DateTime?
+  email          String?
+  address        String?
+  idNumber       String?
+  degree         String?
+  specialty      String?
+  bankName       String?
+  bankAccount    String?
+  startDate      DateTime?
+  note           String?
+  avatarUrl      String?
+  substituteRate Int       @default(0) // đơn giá dạy thế; 0 = dùng mức lương thường
 
-  classes  Class[]  @relation("MainTeacher")
-  assists  Class[]  @relation("Assistant")
+  classes  Class[]   @relation("MainTeacher")
   sessions Session[]
 }
 
 model Room {
-  id       String @id @default(cuid())
-  name     String @unique
-  capacity Int    @default(20)
+  id       String    @id @default(cuid())
+  name     String    @unique
+  capacity Int       @default(20)
   classes  Class[]
   sessions Session[]
 }
@@ -161,25 +163,28 @@ model Course {
 }
 
 model Class {
-  id            String    @id @default(cuid())
-  courseId      String?
-  course        Course?   @relation(fields: [courseId], references: [id])
-  name          String
-  mode          ClassMode @default(OFFLINE)
-  teacherId     String?
-  teacher       Teacher?  @relation("MainTeacher", fields: [teacherId], references: [id])
-  assistantId   String?
-  assistant     Teacher?  @relation("Assistant", fields: [assistantId], references: [id])
-  roomId        String?
-  room          Room?     @relation(fields: [roomId], references: [id])
-  startDate     DateTime
-  endDate       DateTime?
-  totalSessions Int
-  maxStudents   Int       @default(20)
-  tuitionFee    Int       @default(0)
-  billing       String    @default("ONCE") // ONCE = trọn khoá, MONTHLY = thu theo tháng
-  finished      Boolean   @default(false)
-  createdAt     DateTime  @default(now())
+  id              String         @id @default(cuid())
+  courseId        String?
+  course          Course?        @relation(fields: [courseId], references: [id])
+  name            String
+  mode            ClassMode      @default(OFFLINE)
+  teacherId       String?
+  teacher         Teacher?       @relation("MainTeacher", fields: [teacherId], references: [id])
+  assistantId     String?
+  assistant       Assistant?     @relation(fields: [assistantId], references: [id])
+  coordinatorId   String?
+  coordinator     Coordinator?   @relation(fields: [coordinatorId], references: [id])
+  roomId          String?
+  room            Room?          @relation(fields: [roomId], references: [id])
+  startDate       DateTime
+  endDate         DateTime?
+  totalSessions   Int
+  maxStudents     Int            @default(20)
+  tuitionFee      Int            @default(0)
+  billing         String         @default("ONCE") // ONCE = trọn khoá, MONTHLY = thu theo tháng
+  teacherRate     Int? // đơn giá riêng cho giáo viên của lớp này (ghi đè mức lương mặc định)
+  finished        Boolean        @default(false)
+  createdAt       DateTime       @default(now())
   gradeTemplateId String?
   gradeTemplate   GradeTemplate? @relation(fields: [gradeTemplateId], references: [id], onDelete: SetNull)
 
@@ -198,19 +203,22 @@ model ClassSchedule {
 }
 
 model Session {
-  id        String        @id @default(cuid())
-  classId   String
-  class     Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
-  date      DateTime      @db.Date
-  startTime String
-  endTime   String
-  teacherId String?
-  teacher   Teacher?      @relation(fields: [teacherId], references: [id])
-  roomId    String?
-  room      Room?         @relation(fields: [roomId], references: [id])
-  status    SessionStatus @default(PLANNED)
-  isMakeup  Boolean       @default(false)
-  note      String?
+  id                String        @id @default(cuid())
+  classId           String
+  class             Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
+  date              DateTime      @db.Date
+  startTime         String
+  endTime           String
+  teacherId         String?
+  teacher           Teacher?      @relation(fields: [teacherId], references: [id])
+  roomId            String?
+  room              Room?         @relation(fields: [roomId], references: [id])
+  status            SessionStatus @default(PLANNED)
+  isMakeup          Boolean       @default(false)
+  note              String?
+  originalTeacherId String? // có giá trị = buổi này do giáo viên khác dạy thế
+  substituteReason  String?
+  payAmount         Int? // thù lao riêng cho buổi này (ghi đè cách tính mặc định)
 
   attendances Attendance[]
 
@@ -234,17 +242,17 @@ model Enrollment {
 }
 
 model Attendance {
-  id        String           @id @default(cuid())
-  sessionId String
-  session   Session          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  studentId String
-  student   Student          @relation(fields: [studentId], references: [id])
-  status    AttendanceStatus
-  note      String?
-  markedBy  String?
-  markedAt  DateTime         @default(now())
-  makeupDone  Boolean        @default(false) // ABSENT_EXCUSED đã được xếp bù
-  makeupForId String? // buổi học bù này bù cho Attendance nào
+  id            String           @id @default(cuid())
+  sessionId     String
+  session       Session          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentId     String
+  student       Student          @relation(fields: [studentId], references: [id])
+  status        AttendanceStatus
+  note          String?
+  markedBy      String?
+  markedAt      DateTime         @default(now())
+  makeupDone    Boolean          @default(false) // ABSENT_EXCUSED đã được xếp bù
+  makeupForId   String? // buổi học bù này bù cho Attendance nào
   makeupClassId String? // buổi học bù tính vào lớp nào
 
   @@unique([sessionId, studentId])
@@ -304,7 +312,7 @@ model AuditLog {
 
 model Holiday {
   id   String   @id @default(cuid())
-  date DateTime @db.Date @unique
+  date DateTime @unique @db.Date
   name String
 }
 
@@ -394,18 +402,19 @@ model GradeValue {
 }
 
 model Payroll {
-  id         String    @id @default(cuid())
-  teacherId  String
-  month      String // YYYY-MM
-  sessions   Int
-  hours      Float
-  baseAmount Int
-  adjustment Int       @default(0)
-  note       String?
-  status     String    @default("LOCKED") // LOCKED | PAID
-  lockedAt   DateTime  @default(now())
-  paidAt     DateTime?
-  paidBy     String?
+  id               String    @id @default(cuid())
+  teacherId        String
+  month            String // YYYY-MM
+  sessions         Int
+  hours            Float
+  baseAmount       Int
+  substituteAmount Int       @default(0)
+  adjustment       Int       @default(0)
+  note             String?
+  status           String    @default("LOCKED") // LOCKED | PAID
+  lockedAt         DateTime  @default(now())
+  paidAt           DateTime?
+  paidBy           String?
 
   @@unique([teacherId, month])
 }
@@ -422,12 +431,60 @@ model StoredFile {
 }
 
 model PushSub {
-  id       String   @id @default(cuid())
-  userId   String
-  endpoint String   @unique
-  p256dh   String
-  auth     String
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
   createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+/// Trợ giảng: hỗ trợ giáo viên trong lớp (quản lý riêng với giáo viên)
+model Assistant {
+  id          String    @id @default(cuid())
+  userId      String?   @unique
+  user        User?     @relation(fields: [userId], references: [id])
+  fullName    String
+  gender      String?
+  dob         DateTime?
+  phone       String?
+  email       String?
+  address     String?
+  idNumber    String?
+  degree      String?
+  specialty   String?
+  payType     String    @default("PER_SESSION")
+  payRate     Int       @default(0)
+  bankName    String?
+  bankAccount String?
+  startDate   DateTime?
+  note        String?
+  avatarUrl   String?
+  createdAt   DateTime  @default(now())
+  classes     Class[]
+}
+
+/// Giáo vụ: phụ trách vận hành/chăm sóc lớp (quản lý riêng)
+model Coordinator {
+  id          String    @id @default(cuid())
+  userId      String?   @unique
+  user        User?     @relation(fields: [userId], references: [id])
+  fullName    String
+  gender      String?
+  dob         DateTime?
+  phone       String?
+  email       String?
+  address     String?
+  idNumber    String?
+  position    String?
+  salary      Int       @default(0)
+  bankName    String?
+  bankAccount String?
+  startDate   DateTime?
+  note        String?
+  avatarUrl   String?
+  createdAt   DateTime  @default(now())
+  classes     Class[]
 }

@@ -15,10 +15,10 @@ export const lockPayroll = wrap(async (fd) => {
   if (await db.payroll.findUnique({ where: { teacherId_month: { teacherId, month } } })) throw new Error("Bảng lương tháng này đã chốt");
   const t = await db.teacher.findUniqueOrThrow({ where: { id: teacherId } });
   const { from, to } = monthRange(month);
-  const sessions = await db.session.findMany({ where: { teacherId, status: "DONE", date: { gte: from, lt: to } }, select: { startTime: true, endTime: true } });
+  const sessions = await db.session.findMany({ where: { teacherId, status: "DONE", date: { gte: from, lt: to } }, select: { startTime: true, endTime: true, originalTeacherId: true, payAmount: true, class: { select: { teacherRate: true } } } });
   const p = computePay(t, sessions);
   const adj = parseInt(str(fd, "adjustment").replace(/[^\d-]/g, ""), 10);
-  await db.payroll.create({ data: { teacherId, month, sessions: p.sessions, hours: p.hours, baseAmount: p.base, adjustment: Number.isFinite(adj) ? adj : 0, note: opt(fd, "note"), status: "LOCKED" } });
+  await db.payroll.create({ data: { teacherId, month, sessions: p.sessions, hours: p.hours, baseAmount: p.base, substituteAmount: p.substitute, adjustment: Number.isFinite(adj) ? adj : 0, note: opt(fd, "note"), status: "LOCKED" } });
   await audit(me.id, "lock-payroll", "Payroll", teacherId, { month });
   revalidatePath("/cong");
   return "Đã chốt bảng lương";
@@ -38,7 +38,7 @@ export const payPayroll = wrap(async (fd) => {
   const p = await db.payroll.findUniqueOrThrow({ where: { id: str(fd, "id") } });
   if (p.status === "PAID") throw new Error("Đã trả lương rồi");
   const t = await db.teacher.findUniqueOrThrow({ where: { id: p.teacherId } });
-  const amount = p.baseAmount + p.adjustment;
+  const amount = p.baseAmount + p.substituteAmount + p.adjustment;
   await db.$transaction([
     db.payroll.update({ where: { id: p.id }, data: { status: "PAID", paidAt: new Date(), paidBy: me.id } }),
     db.expense.create({ data: { category: "Lương giáo viên", amount, note: `Lương ${t.fullName} - ${p.month}` } }),

@@ -27,3 +27,10 @@ export async function assertRole(...roles: Role[]): Promise<Me> {
 }
 
 export const STAFF_ROLES: Role[] = ["ADMIN", "STAFF"];
+
+/** Tài khoản vai trò TEACHER có thể là giáo viên hoặc trợ giảng. */
+export async function teachingIds(userId: string) {
+  const { db } = await import("@/lib/db");
+  const [t, a] = await Promise.all([db.teacher.findUnique({ where: { userId } }), db.assistant.findUnique({ where: { userId } })]);
+  return { teacherId: t?.id ?? null, assistantId: a?.id ?? null };
+}

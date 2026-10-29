@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { CalendarDays, ChevronLeft, ChevronRight, LayoutList, Rows3, CalendarRange } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, LayoutList, Rows3, CalendarRange, Table2 } from "lucide-react";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/guard";
+import { requireRole, teachingIds } from "@/lib/guard";
+import { portalKids } from "@/server/portal";
 import { ActionForm } from "@/components/action-form";
 import { DialogTrigger } from "@/components/dialog";
 import { Field, inputCls, Title } from "@/components/ui";
@@ -11,10 +12,10 @@ import { updateSession, cancelSession } from "../lop-hoc/actions";
 const hue = (id: string) => { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
 type S = Awaited<ReturnType<typeof load>>[number];
 
-async function load(where: object) {
+async function load(where: object, kidId?: string) {
   return db.session.findMany({
     where, orderBy: [{ date: "asc" }, { startTime: "asc" }],
-    include: { class: { include: { _count: { select: { enrollments: { where: { status: "ACTIVE" } } } } } }, teacher: true, room: true },
+    include: { class: { include: { _count: { select: { enrollments: { where: { status: "ACTIVE" } } } } } }, teacher: true, room: true, attendances: kidId ? { where: { studentId: kidId } } : false },
   });
 }
 
@@ -42,13 +43,15 @@ function lanes(list: S[]) {
   return out;
 }
 
-export default async function Schedule({ searchParams }: { searchParams: Promise<{ w?: string; by?: string; f?: string; view?: string; z?: string }> }) {
-  const me = await requireRole("ADMIN", "STAFF", "TEACHER");
-  const { w, by = "all", f = "", view = "grid", z = "wide" } = await searchParams;
+export default async function Schedule({ searchParams }: { searchParams: Promise<{ w?: string; by?: string; f?: string; view?: string; z?: string; child?: string }> }) {
+  const me = await requireRole("ADMIN", "STAFF", "TEACHER", "STUDENT", "PARENT");
+  const { w, by = "all", f = "", view = "matrix", z = "compact", child } = await searchParams;
+  const isLearner = me.role === "STUDENT" || me.role === "PARENT";
+  const portal = isLearner ? await portalKids(me, child) : null;
   const compact = z === "compact";
-  const PPM = compact ? 1.15 : 1.5; // px mỗi phút
-  const LANE = compact ? 104 : 132;
-  const staff = me.role !== "TEACHER";
+  const PPM = compact ? 0.95 : 1.5; // px mỗi phút
+  const LANE = compact ? 96 : 132;
+  const staff = me.role === "ADMIN" || me.role === "STAFF";
   const today = todayUTC();
   const base = w && /^\d{4}-\d{2}-\d{2}$/.test(w) ? parseDate(w) : today;
 
@@ -68,18 +71,21 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
     label = `${fmtDate(start)} - ${fmtDate(end)}`;
   }
 
-  const myTeacher = me.role === "TEACHER" ? await db.teacher.findUnique({ where: { userId: me.id } }) : null;
+  const mine = me.role === "TEACHER" ? await teachingIds(me.id) : null;
   const where: Record<string, unknown> = { date: { gte: start, lte: end } };
-  if (me.role === "TEACHER") where.OR = [{ teacherId: myTeacher?.id ?? "-" }, { class: { assistantId: myTeacher?.id ?? "-" } }];
+  if (isLearner) {
+    if (!portal?.kid) where.id = "-";
+    else where.OR = [{ class: { enrollments: { some: { studentId: portal.kid.id, status: { in: ["ACTIVE", "PAUSED", "FINISHED"] } } } } }, { attendances: { some: { studentId: portal.kid.id } } }];
+  } else if (mine) where.OR = [{ teacherId: mine.teacherId ?? "-" }, { class: { assistantId: mine.assistantId ?? "-" } }];
   else if (f) { if (by === "class") where.classId = f; if (by === "teacher") where.teacherId = f; if (by === "room") where.roomId = f; }
   const [sessions, classes, teachers, rooms] = await Promise.all([
-    load(where),
+    load(where, portal?.kid?.id),
     db.class.findMany({ where: { finished: false }, orderBy: { name: "asc" } }),
     db.teacher.findMany({ orderBy: { fullName: "asc" } }),
     db.room.findMany({ orderBy: { name: "asc" } }),
   ]);
 
-  const q = (o: Record<string, string>) => `?${new URLSearchParams({ by, f, view, z, w: isoDate(base), ...o })}`;
+  const q = (o: Record<string, string>) => `?${new URLSearchParams({ by, f, view, z, w: isoDate(base), ...(portal?.kid ? { child: portal.kid.id } : {}), ...o })}`;
   const opts = by === "class" ? classes : by === "teacher" ? teachers : by === "room" ? rooms : [];
   const days = view === "month" ? Array.from({ length: Math.round((end.getTime() - start.getTime()) / 86400000) + 1 }, (_, i) => addDays(start, i)) : view === "day" ? [start] : Array.from({ length: 7 }, (_, i) => addDays(start, i));
 
@@ -89,12 +95,13 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
       <div className="grid grid-cols-2 gap-2">
         <div><div className="text-xs text-slate-500">Lớp</div><b>{s.class.name}</b></div>
         <div><div className="text-xs text-slate-500">Thời gian</div><b>{WEEKDAYS[s.date.getUTCDay()]} {fmtDate(s.date)} · {s.startTime}-{s.endTime}</b></div>
-        <div><div className="text-xs text-slate-500">Giáo viên</div>{s.teacher?.fullName ?? "-"}</div>
+        <div><div className="text-xs text-slate-500">Giáo viên</div>{s.teacher?.fullName ?? "-"}{s.originalTeacherId && <span className="ml-1 rounded bg-sky-100 px-1.5 py-0.5 text-[11px] text-sky-700">Dạy thế</span>}</div>
         <div><div className="text-xs text-slate-500">Phòng</div>{s.room?.name ?? "Chưa có"}</div>
-        <div><div className="text-xs text-slate-500">Học viên</div>{s.class._count.enrollments}</div>
+        {!isLearner && <div><div className="text-xs text-slate-500">Học viên</div>{s.class._count.enrollments}</div>}
+        {isLearner && portal?.kid && <div><div className="text-xs text-slate-500">Điểm danh của {portal.kid.fullName.split(" ").pop()}</div>{({ PRESENT: "Có mặt", LATE: "Đi muộn", ABSENT_EXCUSED: "Vắng có phép", ABSENT: "Vắng", PENDING: "Học bù (chờ)" } as Record<string, string>)[(s as unknown as { attendances?: { status: string }[] }).attendances?.[0]?.status ?? ""] ?? (s.status === "PLANNED" ? "Chưa học" : "-")}</div>}
         <div><div className="text-xs text-slate-500">Trạng thái</div>{{ PLANNED: "Chưa dạy", DONE: "Đã điểm danh", CANCELLED: "Nghỉ" }[s.status]}</div>
       </div>
-      {s.status !== "CANCELLED" && <Link href={`/diem-danh/${s.id}`} className="inline-flex h-9 items-center rounded-md bg-orange-600 px-4 font-medium text-white hover:bg-orange-700">Điểm danh</Link>}
+      {!isLearner && s.status !== "CANCELLED" && <Link href={`/diem-danh/${s.id}`} className="inline-flex h-9 items-center rounded-md bg-orange-600 px-4 font-medium text-white hover:bg-orange-700">Điểm danh</Link>}
       {staff && s.status === "PLANNED" && (
         <div className="space-y-3 border-t pt-3">
           <div className="font-medium">Đổi lịch buổi này</div>
@@ -159,10 +166,13 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
         <span className="min-w-44 text-center font-medium">{label}</span>
         <Link className="inline-flex size-9 items-center justify-center rounded-md border bg-white hover:bg-slate-50" href={q({ w: isoDate(step(1)) })} aria-label="Sau"><ChevronRight className="size-4" /></Link>
         <Link className="inline-flex h-9 items-center rounded-md bg-orange-600 px-3 font-medium text-white hover:bg-orange-700" href={q({ w: isoDate(today) })}>Hôm nay</Link>
-      </div>}>Lịch học</Title>
+      </div>}>Lịch học{portal?.kid ? <span className="ml-2 text-sm font-normal text-slate-500">· {portal.kid.fullName} ({portal.kid.code})</span> : null}</Title>
+      {portal && portal.kids.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2 text-sm"><span className="text-slate-500">Xem của:</span>{portal.kids.map((k) => <Link key={k.id} href={`/lich-hoc?child=${k.id}`} className={`rounded-full border px-3 py-1 ${k.id === portal.kid?.id ? "border-orange-600 bg-orange-600 text-white" : "bg-white hover:bg-slate-50"}`}>{k.fullName}</Link>)}</div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
-        {tab("grid", "Lưới giờ", Rows3)}{tab("list", "Danh sách", LayoutList)}{tab("month", "Tháng", CalendarRange)}{tab("day", "Ngày", CalendarDays)}
+        {tab("matrix", "Theo lớp", Table2)}{tab("grid", "Lưới giờ", Rows3)}{tab("list", "Danh sách", LayoutList)}{tab("month", "Tháng", CalendarRange)}{tab("day", "Ngày", CalendarDays)}
         {(view === "grid" || view === "day") && (
           <div className="flex overflow-hidden rounded-md border bg-white text-sm">
             <Link href={q({ z: "compact" })} className={`px-3 py-2 ${compact ? "bg-orange-600 text-white" : "hover:bg-slate-50"}`}>Gọn</Link>
@@ -180,12 +190,73 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
         )}
       </div>
 
+      {/* ===== THEO LỚP (ma trận lớp × thứ) ===== */}
+      {view === "matrix" && (() => {
+        const cols = days.slice(0, 7);
+        const rows = [...new Map(sessions.map((x) => [x.classId, x.class])).values()].sort((a, b) => a.name.localeCompare(b.name, "vi"));
+        const byKey = new Map<string, S[]>();
+        for (const x of sessions) { const k = `${x.classId}|${x.date.getTime()}`; byKey.set(k, [...(byKey.get(k) ?? []), x]); }
+        const info = new Map(sessions.map((x) => [x.classId, x]));
+        return (
+          <div className="max-h-[calc(100vh-12rem)] overflow-auto rounded-lg border bg-white">
+            <table className="w-full min-w-[860px] border-collapse text-sm">
+              <thead>
+                <tr className="bg-slate-50 text-xs">
+                  <th className="sticky left-0 top-0 z-30 w-56 border-b bg-slate-50 px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-500">Lớp ({rows.length})</th>
+                  {cols.map((d) => {
+                    const isToday = d.getTime() === today.getTime();
+                    const n = sessions.filter((x) => x.date.getTime() === d.getTime()).length;
+                    return (
+                      <th key={d.getTime()} className={`sticky top-0 z-20 border-b border-l px-1 py-1.5 text-center font-normal ${isToday ? "bg-orange-100" : "bg-slate-50"}`}>
+                        <Link href={q({ view: "day", w: isoDate(d) })} className="block hover:underline">
+                          <div className="text-slate-500">{WEEKDAYS[d.getUTCDay()]}</div>
+                          <div className={`text-base font-bold leading-tight ${isToday ? "text-orange-700" : ""}`}>{d.getUTCDate()}/{d.getUTCMonth() + 1}</div>
+                          <div className="text-[11px] text-slate-500">{n} buổi</div>
+                        </Link>
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((c) => {
+                  const any = info.get(c.id)!;
+                  return (
+                    <tr key={c.id} className="border-t hover:bg-slate-50/60">
+                      <td className="sticky left-0 z-10 border-r bg-white px-3 py-1.5 align-middle">
+                        {staff ? <Link href={`/lop-hoc/${c.id}`} className="block truncate font-semibold hover:text-orange-700" title={c.name}>{c.name}</Link> : <span className="block truncate font-semibold" title={c.name}>{c.name}</span>}
+                        <div className="truncate text-[11px] text-slate-500">{any.teacher?.fullName ?? "-"} · {any.room?.name ?? "-"}</div>
+                      </td>
+                      {cols.map((d) => {
+                        const list = byKey.get(`${c.id}|${d.getTime()}`) ?? [];
+                        const isToday = d.getTime() === today.getTime();
+                        return (
+                          <td key={d.getTime()} className={`border-l px-1 py-1 align-middle ${isToday ? "bg-orange-50/60" : ""}`}>
+                            {list.map((x) => (
+                              <DialogTrigger key={x.id} title={x.class.name} className="mb-0.5 block w-full rounded px-1.5 py-1 text-center text-xs font-medium tabular-nums last:mb-0" style={tone(x)}
+                                trigger={<span className={x.status === "CANCELLED" ? "line-through" : ""}>{x.startTime}–{x.endTime}{x.status === "DONE" ? " ✓" : ""}</span>}>
+                                <Detail s={x} />
+                              </DialogTrigger>
+                            ))}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+                {!rows.length && <tr><td colSpan={8} className="py-10 text-center text-slate-500">Không có buổi học nào trong tuần này.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        );
+      })()}
+
       {/* ===== LƯỚI GIỜ (tuần / ngày) ===== */}
       {(view === "grid" || view === "day") && (
-        <div className="overflow-x-auto rounded-lg border bg-white">
+        <div className="max-h-[calc(100vh-12rem)] overflow-auto rounded-lg border bg-white">
           <div style={{ minWidth: totalW }}>
-            <div className="grid border-b bg-slate-50" style={{ gridTemplateColumns: template }}>
-              <div className="sticky left-0 z-20 bg-slate-50" />
+            <div className="sticky top-0 z-30 grid border-b bg-slate-50" style={{ gridTemplateColumns: template }}>
+              <div className="sticky left-0 z-30 bg-slate-50" />
               {perDay.map(({ d, list }) => {
                 const n = list.length;
                 const isToday = d.getTime() === today.getTime();
@@ -221,7 +292,7 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
                               <div className={`line-clamp-2 break-words text-sm font-semibold leading-snug ${s.status === "CANCELLED" ? "line-through" : ""}`}>{s.class.name}</div>
                               <div className="truncate text-xs opacity-80">{s.startTime} - {s.endTime}{s.status === "DONE" ? " ✓" : ""}</div>
                               {h > 62 && <div className="truncate text-xs opacity-80">{s.teacher?.fullName ?? ""}</div>}
-                              {h > 84 && <div className="truncate text-xs opacity-80">{s.room ? `${s.room.name} · ` : ""}{s.class._count.enrollments} HV</div>}
+                              {h > 84 && <div className="truncate text-xs opacity-80">{s.room ? s.room.name : ""}{isLearner ? "" : ` · ${s.class._count.enrollments} HV`}</div>}
                             </>
                           }
                           className="absolute overflow-hidden rounded-md px-1.5 py-1 text-left shadow-sm transition-shadow hover:shadow-md hover:ring-2 hover:ring-orange-400"
@@ -254,7 +325,7 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
                   {list.map((s) => (
                     <li key={s.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5" style={{ borderLeft: `4px solid ${s.status === "CANCELLED" ? "#94a3b8" : `hsl(${hue(s.classId)} 65% 42%)`}` }}>
                       <div className="w-28 text-sm font-semibold tabular-nums">{s.startTime} – {s.endTime}</div>
-                      <div className="min-w-0 flex-1"><div className={`truncate font-medium ${s.status === "CANCELLED" ? "line-through text-slate-400" : ""}`}>{s.class.name}</div><div className="truncate text-xs text-slate-500">{s.teacher?.fullName ?? "Chưa có GV"} · {s.room?.name ?? "Chưa có phòng"} · {s.class._count.enrollments} HV</div></div>
+                      <div className="min-w-0 flex-1"><div className={`truncate font-medium ${s.status === "CANCELLED" ? "line-through text-slate-400" : ""}`}>{s.class.name}</div><div className="truncate text-xs text-slate-500">{s.teacher?.fullName ?? "Chưa có GV"} · {s.room?.name ?? "Chưa có phòng"} {isLearner ? "" : `· ${s.class._count.enrollments} HV`}</div></div>
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${s.status === "DONE" ? "bg-green-100 text-green-800" : s.status === "CANCELLED" ? "bg-red-100 text-red-600" : "bg-slate-100 text-slate-600"}`}>{{ PLANNED: "Chưa dạy", DONE: "Đã điểm danh", CANCELLED: "Nghỉ" }[s.status]}</span>
                       <DialogTrigger title={s.class.name} trigger="Chi tiết" className="h-8 rounded-md border bg-white px-3 text-sm hover:bg-slate-50"><Detail s={s} /></DialogTrigger>
                     </li>
@@ -269,9 +340,9 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
 
       {/* ===== THÁNG ===== */}
       {view === "month" && (
-        <div className="overflow-x-auto rounded-lg border bg-white">
+        <div className="max-h-[calc(100vh-12rem)] overflow-auto rounded-lg border bg-white">
           <div className="min-w-[760px]">
-            <div className="grid grid-cols-7 border-b bg-slate-50 text-center text-xs font-semibold text-slate-500">{["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "CN"].map((d) => <div key={d} className="py-2">{d}</div>)}</div>
+            <div className="sticky top-0 z-20 grid grid-cols-7 border-b bg-slate-50 text-center text-xs font-semibold text-slate-500">{["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "CN"].map((d) => <div key={d} className="py-2">{d}</div>)}</div>
             <div className="grid grid-cols-7">
               {days.map((d) => {
                 const list = sessions.filter((s) => s.date.getTime() === d.getTime());

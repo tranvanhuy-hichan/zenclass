@@ -35,16 +35,16 @@ input, select, textarea { color: var(--fg); }
 /* chế độ tối: chữ phụ & nền màu nhạt vẫn đọc được */
 /* Chế độ tối: đổi bảng màu xám/màu trạng thái để toàn bộ giao diện tự thích ứng */
 :root[data-dark="1"] {
-  --color-slate-50: #172033; --color-slate-100: #1e293b; --color-slate-200: #334155; --color-slate-300: #475569; --color-slate-400: #64748b;
-  --color-slate-500: #94a3b8; --color-slate-600: #a9b6c9; --color-slate-700: #cbd5e1; --color-slate-800: #e2e8f0; --color-slate-900: #f1f5f9;
-  --color-gray-50: #172033; --color-gray-100: #1e293b; --color-gray-200: #334155; --color-gray-300: #475569; --color-gray-400: #64748b;
-  --color-gray-500: #94a3b8; --color-gray-600: #a9b6c9; --color-gray-700: #cbd5e1; --color-gray-800: #e2e8f0;
+  --color-slate-50: #172033; --color-slate-100: #2b3a52; --color-slate-200: #334155; --color-slate-300: #475569; --color-slate-400: #64748b;
+  --color-slate-500: #a3b1c6; --color-slate-600: #bcc8d9; --color-slate-700: #d5deea; --color-slate-800: #e2e8f0; --color-slate-900: #f1f5f9;
+  --color-gray-50: #172033; --color-gray-100: #2b3a52; --color-gray-200: #334155; --color-gray-300: #475569; --color-gray-400: #64748b;
+  --color-gray-500: #a3b1c6; --color-gray-600: #bcc8d9; --color-gray-700: #d5deea; --color-gray-800: #e2e8f0;
   --color-green-50: #0f2a1e; --color-green-100: #14392a; --color-green-300: #1f7a4d; --color-green-500: #22c55e; --color-green-700: #86efac; --color-green-800: #bbf7d0;
   --color-red-50: #331a1d; --color-red-100: #4a1d22; --color-red-200: #7f1d1d; --color-red-300: #b91c1c; --color-red-600: #f87171;
   --color-yellow-100: #422f0a; --color-yellow-200: #713f12; --color-yellow-300: #ca8a04; --color-yellow-700: #fde047; --color-yellow-800: #fef08a; --color-yellow-900: #fef9c3;
-  --color-sky-100: #0c2d48; --color-sky-700: #7dd3fc;
-  --color-blue-100: #172554; --color-blue-800: #bfdbfe;
-  --color-purple-200: #3b2a63;
+  --color-sky-50: #0b2236; --color-sky-100: #0c2d48; --color-sky-200: #0f3d63; --color-sky-700: #7dd3fc;
+  --color-blue-50: #0e2347; --color-blue-100: #172554; --color-blue-300: #1d4ed8; --color-blue-700: #93c5fd; --color-blue-800: #bfdbfe;
+  --color-green-900: #dcfce7; --color-red-900: #fee2e2; --color-sky-900: #e0f2fe; --color-purple-900: #f3e8ff; --color-purple-100: #2e2150; --color-purple-200: #3b2a63; --color-blue-600: #60a5fa; --color-yellow-50: #2e2306;
 }
 :root[data-dark="1"] .bg-white\/85 { background-color: color-mix(in srgb, var(--surface) 85%, transparent); }
 :root[data-dark="1"] .shadow-sm, :root[data-dark="1"] .shadow-lg, :root[data-dark="1"] .shadow-xl { box-shadow: 0 1px 3px rgb(0 0 0 / 0.5); }
@@ -85,3 +85,6 @@ button:disabled { cursor: not-allowed; }
   .rtable tbody td:only-child { grid-column: 1 / -1; }
 }
 @media (max-width: 767px) { input, select, textarea { font-size: 16px !important; } }
+
+/* Hàng bảng bấm được để mở chi tiết */
+tr[data-clickable] { cursor: pointer; }

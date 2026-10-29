@@ -26,6 +26,7 @@ export async function loadStudents(where: object = {}) {
     where,
     orderBy: { fullName: "asc" },
     include: {
+      parent: { select: { fullName: true, phone: true, relation: true } },
       enrollments: { include: { class: true } },
       attendances: { where: { status: "ABSENT_EXCUSED", makeupDone: false }, select: { id: true } },
     },

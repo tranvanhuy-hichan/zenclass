@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { AlertTriangle, BookOpen, CalendarClock, Check, Hourglass, RotateCcw, Trash2, Users, Wallet, Wallet2 } from "lucide-react";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/guard";
+import { requireRole, teachingIds } from "@/lib/guard";
 import { ActionForm } from "@/components/action-form";
 import { Card, inputCls, Title } from "@/components/ui";
-import { todayUTC, fmtMoney, addDays, fmtDate, toMinutes } from "@/lib/format";
-import { StudentOverview } from "@/components/student-overview";
+import { todayUTC, fmtMoney, fmtDate, toMinutes } from "@/lib/format";
+import { PortalHome } from "@/components/portal";
 import { addNote, toggleNote, deleteNote } from "./notes-actions";
 import { loadStudents } from "@/server/status";
 
@@ -41,14 +41,14 @@ function TodayList({ sessions }: { sessions: TodaySession[] }) {
   );
 }
 
-export default async function Home() {
+export default async function Home({ searchParams }: { searchParams: Promise<{ child?: string }> }) {
   const me = await requireRole();
-  if (me.role === "STUDENT" || me.role === "PARENT") return <Portal meId={me.id} role={me.role} />;
+  if (me.role === "STUDENT" || me.role === "PARENT") return <PortalHome searchParams={searchParams} />;
 
   const today = todayUTC();
-  const t = me.role === "TEACHER" ? await db.teacher.findUnique({ where: { userId: me.id } }) : null;
+  const t = me.role === "TEACHER" ? await teachingIds(me.id) : null;
   const sessions = await db.session.findMany({
-    where: { date: today, ...(t ? { OR: [{ teacherId: t.id }, { class: { assistantId: t.id } }] } : {}) },
+    where: { date: today, ...(t ? { OR: [{ teacherId: t.teacherId ?? "-" }, { class: { assistantId: t.assistantId ?? "-" } }] } : {}) },
     orderBy: { startTime: "asc" },
     include: { class: { select: { name: true, mode: true, _count: { select: { enrollments: { where: { status: "ACTIVE" } } } } } }, teacher: { select: { fullName: true } }, room: { select: { name: true } } },
   });
@@ -182,23 +182,6 @@ export default async function Home() {
           </Card>
         </div>
       </div>
-    </div>
-  );
-}
-
-async function Portal({ meId, role }: { meId: string; role: string }) {
-  const kids = role === "STUDENT"
-    ? await db.student.findMany({ where: { userId: meId } })
-    : await db.student.findMany({ where: { parent: { userId: meId } } });
-  return (
-    <div className="space-y-8">
-      {kids.map((k) => (
-        <div key={k.id} className="space-y-3">
-          <Title>{k.fullName} <span className="text-sm font-normal text-gray-500">{k.code}</span></Title>
-          <StudentOverview studentId={k.id} invoiceBase="/hoa-don" />
-        </div>
-      ))}
-      {!kids.length && <p className="text-gray-500">Chưa có học viên liên kết với tài khoản này.</p>}
     </div>
   );
 }

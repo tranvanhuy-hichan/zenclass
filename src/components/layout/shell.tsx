@@ -1,9 +1,9 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "next-auth/react";
-import { Bell, ChevronRight, KeyRound, LogOut, Menu, X } from "lucide-react";
+import { ArrowLeft, Bell, ChevronRight, KeyRound, LogOut, Menu, X } from "lucide-react";
 import clsx from "clsx";
 import { NAV, ROLE_LABEL, titleOf, type NavGroup } from "@/lib/nav";
 import type { Role } from "@/lib/guard";
@@ -45,6 +45,7 @@ function Links({ groups, path, badges, onNavigate, compact }: { groups: NavGroup
 
 export function Shell({ role, userName, name, logo, unread, mustChange, children }: { role: Role; userName: string; name: string; logo: string; unread: number; mustChange: boolean; children: React.ReactNode }) {
   const path = usePathname();
+  const router = useRouter();
   const groups = NAV[role];
   const badges = { "/thong-bao": unread };
   const [drawer, setDrawer] = useState(false);
@@ -73,6 +74,12 @@ export function Shell({ role, userName, name, logo, unread, mustChange, children
       <div className="md:pl-16 lg:pl-60 flex min-h-screen flex-col">
         <header className="no-print sticky top-0 z-20 flex h-14 items-center gap-2 border-b bg-white px-3 md:px-6">
           <button onClick={() => setDrawer(true)} className="md:hidden p-2 -ml-1" aria-label="Menu"><Menu className="size-5" /></button>
+          {path !== "/" && (
+            <button
+              onClick={() => (window.history.length > 1 ? router.back() : router.push(crumbs.length > 1 ? crumbs[crumbs.length - 2].href : "/"))}
+              className="mr-1 grid size-8 shrink-0 place-items-center rounded-md border hover:bg-slate-100" aria-label="Quay lại" title="Quay lại"
+            ><ArrowLeft className="size-4" /></button>
+          )}
           <nav className="flex min-w-0 flex-1 items-center gap-1 text-sm text-slate-500" aria-label="Breadcrumb">
             <Link href="/" className="hover:text-orange-700">Trang chủ</Link>
             {crumbs.map((c, i) => (

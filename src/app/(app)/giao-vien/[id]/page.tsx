@@ -12,13 +12,14 @@ import { WEEKDAYS, addDays, fmtDate, fmtMoney, todayUTC } from "@/lib/format";
 import { computePay, monthRange, PAY_LABEL } from "@/server/payroll";
 import { deleteTeacher, resetUserPassword, updateTeacher } from "../actions";
 
-const TABS = [["overview", "Tổng quan"], ["info", "Thông tin cá nhân"], ["classes", "Lớp phụ trách"], ["schedule", "Lịch dạy"], ["pay", "Chấm công & Lương"], ["account", "Tài khoản"]] as const;
+const ALL_TABS = [["overview", "Tổng quan"], ["info", "Thông tin cá nhân"], ["classes", "Lớp phụ trách"], ["schedule", "Lịch dạy"], ["pay", "Chấm công & Lương"], ["account", "Tài khoản"]] as const;
 const fm = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 
 export default async function TeacherDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string; page?: string; size?: string; all?: string }> }) {
   const me = await requireRole(...STAFF_ROLES);
   const { id } = await params;
   const sp = await searchParams;
+  const TABS = me.role === "ADMIN" ? ALL_TABS : ALL_TABS.filter(([k]) => k !== "pay"); // chỉ Admin xem lương
   const tab = TABS.some(([k]) => k === sp.tab) ? sp.tab! : "overview";
   const pg = getPaging(sp, 10);
 
@@ -28,12 +29,12 @@ export default async function TeacherDetail({ params, searchParams }: { params: 
   const nowVN = new Date(Date.now() + 7 * 3600_000);
   const thisMonth = fm(nowVN);
   const { from, to } = monthRange(thisMonth);
-  const mine = { OR: [{ teacherId: id }, { assistantId: id }] };
+  const mine = { teacherId: id };
 
   const [activeClasses, studentCount, monthSessions, upcoming5] = await Promise.all([
     db.class.findMany({ where: { ...mine, finished: false }, include: { schedules: true, _count: { select: { enrollments: { where: { status: "ACTIVE" } } } } }, orderBy: { name: "asc" } }),
     db.enrollment.count({ where: { status: "ACTIVE", class: { ...mine, finished: false } } }),
-    db.session.findMany({ where: { teacherId: id, status: "DONE", date: { gte: from, lt: to } }, select: { startTime: true, endTime: true } }),
+    db.session.findMany({ where: { teacherId: id, status: "DONE", date: { gte: from, lt: to } }, select: { startTime: true, endTime: true, originalTeacherId: true, payAmount: true, class: { select: { teacherRate: true } } } }),
     db.session.findMany({ where: { teacherId: id, status: "PLANNED", date: { gte: today } }, orderBy: [{ date: "asc" }, { startTime: "asc" }], take: 5, include: { class: true, room: true } }),
   ]);
   const pay = computePay(t, monthSessions);
@@ -87,7 +88,7 @@ export default async function TeacherDetail({ params, searchParams }: { params: 
             <Stat icon={BookOpen} label="Lớp đang phụ trách" value={activeClasses.length} />
             <Stat icon={Users} label="Học viên đang dạy" value={studentCount} tone="bg-sky-100 text-sky-700" />
             <Stat icon={CalendarCheck} label={`Buổi dạy tháng ${nowVN.getUTCMonth() + 1}`} value={pay.sessions} tone="bg-green-100 text-green-700" />
-            <Stat icon={Wallet} label="Lương tạm tính tháng này" value={fmtMoney(pay.base)} tone="bg-yellow-100 text-yellow-700" />
+            {me.role === "ADMIN" && <Stat icon={Wallet} label="Lương tạm tính tháng này" value={fmtMoney(pay.total)} tone="bg-yellow-100 text-yellow-700" />}
           </div>
           <div className="grid gap-4 xl:grid-cols-2">
             <Card className="p-0">
@@ -121,7 +122,7 @@ export default async function TeacherDetail({ params, searchParams }: { params: 
       {tab === "info" && (
         <ActionForm action={updateTeacher} submit="Lưu thông tin" reset={false} className="flex flex-col gap-4 [&>button]:self-start">
           <input type="hidden" name="id" value={t.id} />
-          <TeacherFields t={t} />
+          <TeacherFields t={t} showPay={me.role === "ADMIN"} />
         </ActionForm>
       )}
 
@@ -138,17 +139,16 @@ export default async function TeacherDetail({ params, searchParams }: { params: 
               <span className="text-slate-600">{total} lớp</span>
               <Link href={sp.all ? "?tab=classes" : "?tab=classes&all=1"} className="text-orange-700 hover:underline">{sp.all ? "Chỉ lớp đang mở" : "Hiện cả lớp đã kết thúc"}</Link>
             </div>
-            <Table head={["Lớp", "Vai trò", "Lịch học", "Phòng", "Học viên", "Trạng thái"]}>
+            <Table head={["Lớp", "Lịch học", "Phòng", "Học viên", "Trạng thái"]}>
               {list.map((c) => (
                 <tr key={c.id}>
-                  <td><Link href={`/lop-hoc/${c.id}`} className="font-medium text-orange-700 hover:underline">{c.name}</Link></td>
-                  <td>{c.teacherId === id ? "Giáo viên chính" : "Trợ giảng"}</td>
+                  <td><Link data-row href={`/lop-hoc/${c.id}`} className="font-medium text-orange-700 hover:underline">{c.name}</Link></td>
                   <td>{c.schedules.map((s) => `${WEEKDAYS[s.weekday]} ${s.startTime}-${s.endTime}`).join(" • ")}</td>
                   <td>{c.room?.name ?? "-"}</td><td>{c._count.enrollments}/{c.maxStudents}</td>
                   <td>{c.finished ? <span className="rounded bg-slate-200 px-2 py-0.5 text-xs">Đã kết thúc</span> : <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-800">Đang mở</span>}</td>
                 </tr>
               ))}
-              {!list.length && <tr><td colSpan={6} className="py-8 text-center text-slate-500">Chưa có lớp.</td></tr>}
+              {!list.length && <tr><td colSpan={5} className="py-8 text-center text-slate-500">Chưa có lớp.</td></tr>}
             </Table>
             <Pagination total={total} page={pg.page} size={pg.size} path={`/giao-vien/${id}`} params={{ tab: "classes", all: sp.all, size: sp.size }} />
           </div>
@@ -169,7 +169,7 @@ export default async function TeacherDetail({ params, searchParams }: { params: 
               {list.map((s) => (
                 <tr key={s.id} className={s.date.getTime() === today.getTime() ? "bg-orange-50" : ""}>
                   <td className="whitespace-nowrap">{WEEKDAYS[s.date.getUTCDay()]}, {fmtDate(s.date)}{s.date.getTime() === today.getTime() && <span className="ml-1 rounded bg-orange-600 px-1.5 text-[10px] text-white">Hôm nay</span>}</td>
-                  <td className="whitespace-nowrap">{s.startTime}-{s.endTime}</td><td>{s.class.name}</td><td>{s.room?.name ?? "-"}</td><td>{s.class._count.enrollments}</td>
+                  <td className="whitespace-nowrap">{s.startTime}-{s.endTime}</td><td>{s.class.name}{s.originalTeacherId && <span className="ml-1 rounded bg-sky-100 px-1.5 text-[11px] text-sky-700">Dạy thế</span>}</td><td>{s.room?.name ?? "-"}</td><td>{s.class._count.enrollments}</td>
                   <td><Link href={`/diem-danh/${s.id}`} className="text-orange-700 hover:underline">Điểm danh</Link></td>
                 </tr>
               ))}
@@ -185,27 +185,28 @@ export default async function TeacherDetail({ params, searchParams }: { params: 
         const months = Array.from({ length: 6 }, (_, i) => fm(new Date(Date.UTC(nowVN.getUTCFullYear(), nowVN.getUTCMonth() - i, 1))));
         const [payrolls, sessions] = await Promise.all([
           db.payroll.findMany({ where: { teacherId: id, month: { in: months } } }),
-          db.session.findMany({ where: { teacherId: id, status: "DONE", date: { gte: monthRange(months[months.length - 1]).from } }, select: { date: true, startTime: true, endTime: true } }),
+          db.session.findMany({ where: { teacherId: id, status: "DONE", date: { gte: monthRange(months[months.length - 1]).from } }, select: { date: true, startTime: true, endTime: true, originalTeacherId: true, payAmount: true, class: { select: { teacherRate: true } } } }),
         ]);
         return (
           <div className="space-y-3">
             <Card className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
               <span><span className="text-slate-500">Kiểu lương:</span> <b>{PAY_LABEL[t.payType]}</b></span>
               <span><span className="text-slate-500">Mức:</span> <b>{fmtMoney(t.payRate)}</b></span>
+              <span><span className="text-slate-500">Đơn giá dạy thế:</span> <b>{t.substituteRate ? fmtMoney(t.substituteRate) : "như mức thường"}</b></span>
               {t.bankAccount && <span><span className="text-slate-500">Tài khoản:</span> <b>{t.bankName} · {t.bankAccount}</b></span>}
               <Link href={`/cong?m=${thisMonth}`} className="ml-auto text-orange-700 hover:underline">Mở bảng lương chung →</Link>
             </Card>
-            <Table head={["Tháng", "Số buổi", "Số giờ", "Lương cơ bản", "Điều chỉnh", "Thực nhận", "Trạng thái"]}>
+            <Table head={["Tháng", "Số buổi", "Số giờ", "Lương cơ bản", "Dạy thế", "Điều chỉnh", "Thực nhận", "Trạng thái"]}>
               {months.map((m) => {
                 const r = monthRange(m);
                 const live = computePay(t, sessions.filter((s) => s.date >= r.from && s.date < r.to));
                 const p = payrolls.find((x) => x.month === m);
-                const base = p ? p.baseAmount : live.base, adj = p?.adjustment ?? 0;
+                const base = p ? p.baseAmount : live.base, sub = p ? p.substituteAmount : live.substitute, adj = p?.adjustment ?? 0;
                 return (
                   <tr key={m}>
                     <td className="font-medium">{r.mo}/{r.y}</td><td>{p ? p.sessions : live.sessions}</td><td>{(p ? p.hours : live.hours).toFixed(1)}</td>
-                    <td>{fmtMoney(base)}</td><td className={adj < 0 ? "text-red-600" : adj > 0 ? "text-green-700" : ""}>{adj ? `${adj > 0 ? "+" : ""}${fmtMoney(adj)}` : "-"}</td>
-                    <td className="font-bold text-orange-700">{fmtMoney(base + adj)}</td>
+                    <td>{fmtMoney(base)}</td><td className="text-sky-700">{sub ? `+${fmtMoney(sub)}` : "-"}</td><td className={adj < 0 ? "text-red-600" : adj > 0 ? "text-green-700" : ""}>{adj ? `${adj > 0 ? "+" : ""}${fmtMoney(adj)}` : "-"}</td>
+                    <td className="font-bold text-orange-700">{fmtMoney(base + sub + adj)}</td>
                     <td>{p?.status === "PAID" ? <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">Đã trả {fmtDate(p.paidAt)}</span> : p ? <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">Đã chốt</span> : <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">Chưa chốt</span>}</td>
                   </tr>
                 );

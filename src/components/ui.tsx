@@ -3,14 +3,8 @@ import { ResponsiveTable } from "@/components/responsive-table";
 
 export const inputCls = "h-9 border rounded-md px-3 text-sm bg-white";
 
-export function Title({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) {
-  return (
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-      <h1 className="text-xl font-semibold tracking-tight">{children}</h1>
-      {right && <div className="flex flex-wrap items-center gap-2">{right}</div>}
-    </div>
-  );
-}
+export { Title } from "@/components/page-title";
+
 export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   const pad = /(^|\s)p-\d/.test(className) ? "" : "p-4";
   return <div className={`bg-white rounded-lg border ${pad} ${className}`}>{children}</div>;

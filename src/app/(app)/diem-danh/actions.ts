@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { assertRole, getMe } from "@/lib/guard";
+import { assertRole, getMe, teachingIds } from "@/lib/guard";
 import { wrap, str } from "@/lib/action";
 import { recalcEnrollment } from "@/server/schedule";
 import { notifyStudent } from "@/lib/notify";
@@ -15,8 +15,9 @@ async function canMark(sessionId: string) {
   const me = await assertRole("ADMIN", "STAFF", "TEACHER");
   const s = await db.session.findUniqueOrThrow({ where: { id: sessionId }, include: { class: true, teacher: true } });
   if (me.role === "TEACHER") {
-    const t = await db.teacher.findUnique({ where: { userId: me.id } });
-    if (!t || (s.teacherId !== t.id && s.class.assistantId !== t.id)) throw new Error("Bạn không phụ trách buổi này");
+    const ids = await teachingIds(me.id);
+    const ok = (ids.teacherId && s.teacherId === ids.teacherId) || (ids.assistantId && s.class.assistantId === ids.assistantId);
+    if (!ok) throw new Error("Bạn không phụ trách buổi này");
     const { maxEditDays } = await getSettings();
     if ((todayUTC().getTime() - s.date.getTime()) / 86400_000 > maxEditDays) throw new Error("Đã quá hạn chỉnh sửa điểm danh, liên hệ quản lý");
   }

@@ -7,26 +7,27 @@ import { wrap, str, int, opt } from "@/lib/action";
 import { parseDate } from "@/lib/format";
 import { createUser, resetPassword } from "@/server/accounts";
 
-function readTeacher(fd: FormData) {
+function readTeacher(fd: FormData, isAdmin: boolean) {
   const fullName = str(fd, "fullName");
   if (fullName.length < 2) throw new Error("Nhập họ tên");
   const email = opt(fd, "email");
   if (email && !/^\S+@\S+\.\S+$/.test(email)) throw new Error("Email không hợp lệ");
   const g = str(fd, "gender");
   const payType = ["PER_SESSION", "PER_HOUR", "FIXED"].includes(str(fd, "payType")) ? str(fd, "payType") : "PER_SESSION";
+  // Lương và tài khoản ngân hàng: chỉ Admin được nhập/sửa; người khác gửi lên cũng bị bỏ qua
+  const pay = isAdmin ? { bankName: opt(fd, "bankName"), bankAccount: opt(fd, "bankAccount"), payType, payRate: int(fd, "payRate"), substituteRate: int(fd, "substituteRate") } : {};
   return {
     fullName, phone: opt(fd, "phone"), email, address: opt(fd, "address"), idNumber: opt(fd, "idNumber"), degree: opt(fd, "degree"),
-    specialty: opt(fd, "specialty"), bankName: opt(fd, "bankName"), bankAccount: opt(fd, "bankAccount"), note: opt(fd, "note"), avatarUrl: opt(fd, "avatarUrl"),
+    specialty: opt(fd, "specialty"), note: opt(fd, "note"), avatarUrl: opt(fd, "avatarUrl"), ...pay,
     gender: ["MALE", "FEMALE", "OTHER"].includes(g) ? g : null,
     dob: str(fd, "dob") ? parseDate(str(fd, "dob")) : null,
     startDate: str(fd, "startDate") ? parseDate(str(fd, "startDate")) : null,
-    payType, payRate: int(fd, "payRate"),
   };
 }
 
 export const createTeacher = wrap(async (fd) => {
-  await assertRole(...STAFF_ROLES);
-  const d = readTeacher(fd);
+  const me = await assertRole(...STAFF_ROLES);
+  const d = readTeacher(fd, me.role === "ADMIN");
   const username = str(fd, "username") || d.phone;
   let msg = "Đã thêm giáo viên";
   let userId: string | undefined;
@@ -42,9 +43,9 @@ export const createTeacher = wrap(async (fd) => {
 });
 
 export const updateTeacher = wrap(async (fd) => {
-  await assertRole(...STAFF_ROLES);
+  const me = await assertRole(...STAFF_ROLES);
   const id = str(fd, "id");
-  const d = readTeacher(fd);
+  const d = readTeacher(fd, me.role === "ADMIN");
   const t = await db.teacher.update({ where: { id }, data: d });
   if (t.userId) await db.user.update({ where: { id: t.userId }, data: { fullName: d.fullName } });
   revalidatePath("/giao-vien");
@@ -54,7 +55,7 @@ export const updateTeacher = wrap(async (fd) => {
 export const deleteTeacher = wrap(async (fd) => {
   await assertRole("ADMIN");
   const id = str(fd, "id");
-  if ((await db.class.count({ where: { OR: [{ teacherId: id }, { assistantId: id }] } })) > 0)
+  if ((await db.class.count({ where: { teacherId: id } })) > 0)
     throw new Error("Giáo viên đang được gán vào lớp");
   await db.session.updateMany({ where: { teacherId: id }, data: { teacherId: null } });
   const t = await db.teacher.delete({ where: { id } });

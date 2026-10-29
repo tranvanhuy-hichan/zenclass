@@ -7,8 +7,8 @@ const Ctx = createContext<(() => void) | null>(null);
 export const useDialogClose = () => useContext(Ctx);
 
 export function DialogButton({
-  label, title, children, wide = false, variant = "primary",
-}: { label: React.ReactNode; title: string; children: React.ReactNode; wide?: boolean; variant?: "primary" | "secondary" }) {
+  label, title, children, wide = false, variant = "primary", size = "md",
+}: { label: React.ReactNode; title: string; children: React.ReactNode; wide?: boolean; variant?: "primary" | "secondary" | "ghost"; size?: "md" | "sm" }) {
   const ref = useRef<HTMLDialogElement>(null);
   const close = () => ref.current?.close();
   return (
@@ -16,7 +16,7 @@ export function DialogButton({
       <button
         type="button"
         onClick={() => ref.current?.showModal()}
-        className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-md px-4 text-sm font-medium transition-colors ${variant === "primary" ? "bg-orange-600 text-white hover:bg-orange-700" : "border bg-white hover:bg-slate-50"}`}
+        className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md font-medium transition-colors ${size === "sm" ? "h-8 px-3 text-xs" : "h-9 px-4 text-sm"} ${variant === "primary" ? "bg-orange-600 text-white hover:bg-orange-700" : variant === "ghost" ? "text-orange-700 hover:bg-orange-50" : "border bg-white hover:bg-slate-50"}`}
       >
         {label}
       </button>
