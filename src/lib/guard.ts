@@ -1,0 +1,29 @@
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
+import { authOptions } from "@/lib/auth";
+
+export type Role = "ADMIN" | "STAFF" | "TEACHER" | "STUDENT" | "PARENT";
+export type Me = { id: string; name: string; role: Role };
+
+export async function getMe(): Promise<Me | null> {
+  const s = await getServerSession(authOptions);
+  const u = s?.user as { id?: string; name?: string; role?: Role } | undefined;
+  return u?.id ? { id: u.id, name: u.name ?? "", role: u.role! } : null;
+}
+
+/** Dùng trong page: chuyển hướng nếu chưa đăng nhập / sai quyền. */
+export async function requireRole(...roles: Role[]): Promise<Me> {
+  const me = await getMe();
+  if (!me) redirect("/login");
+  if (roles.length && !roles.includes(me.role)) redirect("/");
+  return me;
+}
+
+/** Dùng trong server action: ném lỗi nếu sai quyền. */
+export async function assertRole(...roles: Role[]): Promise<Me> {
+  const me = await getMe();
+  if (!me || (roles.length && !roles.includes(me.role))) throw new Error("Không có quyền");
+  return me;
+}
+
+export const STAFF_ROLES: Role[] = ["ADMIN", "STAFF"];

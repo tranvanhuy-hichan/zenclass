@@ -1,0 +1,433 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  STAFF
+  TEACHER
+  STUDENT
+  PARENT
+}
+
+enum ClassMode {
+  OFFLINE
+  ONLINE
+}
+
+enum SessionStatus {
+  PLANNED
+  DONE
+  CANCELLED
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  WAITING
+  PAUSED
+  FINISHED
+  DROPPED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT_EXCUSED
+  ABSENT
+  PENDING
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  VOID
+}
+
+enum PayMethod {
+  CASH
+  BANK
+  QR
+}
+
+model User {
+  id            String   @id @default(cuid())
+  username      String   @unique
+  passwordHash  String
+  role          Role
+  fullName      String
+  mustChangePwd Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  permissions   Json? // null = toàn quyền theo vai trò; mảng khoá quyền cho nhân viên
+  failedLogins  Int      @default(0)
+  lockedUntil   DateTime?
+  createdAt     DateTime @default(now())
+
+  student Student?
+  teacher Teacher?
+  parent  Parent?
+}
+
+model Parent {
+  id       String    @id @default(cuid())
+  userId   String?   @unique
+  user     User?     @relation(fields: [userId], references: [id])
+  fullName String
+  phone    String    @unique
+  email    String?
+  address  String?
+  job      String?
+  relation String?
+  students Student[]
+}
+
+model Student {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  userId    String?  @unique
+  user      User?    @relation(fields: [userId], references: [id])
+  fullName  String
+  dob       DateTime?
+  phone     String?
+  address   String?
+  note      String?
+  dropped   Boolean  @default(false)
+  gender    String? // MALE | FEMALE | OTHER
+  email     String?
+  school    String?
+  gradeLevel String?
+  source    String?
+  emergencyContact String?
+  avatarUrl String?
+  discountPct Int     @default(0)
+  discountNote String?
+  parentId  String?
+  parent    Parent?  @relation(fields: [parentId], references: [id])
+  createdAt DateTime @default(now())
+
+  enrollments Enrollment[]
+  attendances Attendance[]
+  invoices    Invoice[]
+}
+
+model Teacher {
+  id       String  @id @default(cuid())
+  userId   String? @unique
+  user     User?   @relation(fields: [userId], references: [id])
+  fullName String
+  phone    String?
+  payType  String  @default("PER_SESSION")
+  payRate  Int     @default(0)
+  gender   String?
+  dob      DateTime?
+  email    String?
+  address  String?
+  idNumber String?
+  degree   String?
+  specialty String?
+  bankName String?
+  bankAccount String?
+  startDate DateTime?
+  note     String?
+  avatarUrl String?
+
+  classes  Class[]  @relation("MainTeacher")
+  assists  Class[]  @relation("Assistant")
+  sessions Session[]
+}
+
+model Room {
+  id       String @id @default(cuid())
+  name     String @unique
+  capacity Int    @default(20)
+  classes  Class[]
+  sessions Session[]
+}
+
+model Course {
+  id            String  @id @default(cuid())
+  name          String
+  subject       String?
+  level         String?
+  totalSessions Int
+  tuitionFee    Int
+  classes       Class[]
+}
+
+model Class {
+  id            String    @id @default(cuid())
+  courseId      String?
+  course        Course?   @relation(fields: [courseId], references: [id])
+  name          String
+  mode          ClassMode @default(OFFLINE)
+  teacherId     String?
+  teacher       Teacher?  @relation("MainTeacher", fields: [teacherId], references: [id])
+  assistantId   String?
+  assistant     Teacher?  @relation("Assistant", fields: [assistantId], references: [id])
+  roomId        String?
+  room          Room?     @relation(fields: [roomId], references: [id])
+  startDate     DateTime
+  endDate       DateTime?
+  totalSessions Int
+  maxStudents   Int       @default(20)
+  tuitionFee    Int       @default(0)
+  billing       String    @default("ONCE") // ONCE = trọn khoá, MONTHLY = thu theo tháng
+  finished      Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  gradeTemplateId String?
+  gradeTemplate   GradeTemplate? @relation(fields: [gradeTemplateId], references: [id], onDelete: SetNull)
+
+  schedules   ClassSchedule[]
+  sessions    Session[]
+  enrollments Enrollment[]
+}
+
+model ClassSchedule {
+  id        String @id @default(cuid())
+  classId   String
+  class     Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  weekday   Int // 0 = Chủ nhật ... 6 = Thứ 7
+  startTime String // "19:00"
+  endTime   String // "20:00"
+}
+
+model Session {
+  id        String        @id @default(cuid())
+  classId   String
+  class     Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
+  date      DateTime      @db.Date
+  startTime String
+  endTime   String
+  teacherId String?
+  teacher   Teacher?      @relation(fields: [teacherId], references: [id])
+  roomId    String?
+  room      Room?         @relation(fields: [roomId], references: [id])
+  status    SessionStatus @default(PLANNED)
+  isMakeup  Boolean       @default(false)
+  note      String?
+
+  attendances Attendance[]
+
+  @@index([classId, date])
+  @@index([teacherId, date])
+  @@index([roomId, date])
+}
+
+model Enrollment {
+  id            String           @id @default(cuid())
+  studentId     String
+  student       Student          @relation(fields: [studentId], references: [id])
+  classId       String
+  class         Class            @relation(fields: [classId], references: [id])
+  startDate     DateTime
+  totalSessions Int
+  usedSessions  Int              @default(0)
+  status        EnrollmentStatus @default(ACTIVE)
+
+  @@index([studentId, status])
+}
+
+model Attendance {
+  id        String           @id @default(cuid())
+  sessionId String
+  session   Session          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentId String
+  student   Student          @relation(fields: [studentId], references: [id])
+  status    AttendanceStatus
+  note      String?
+  markedBy  String?
+  markedAt  DateTime         @default(now())
+  makeupDone  Boolean        @default(false) // ABSENT_EXCUSED đã được xếp bù
+  makeupForId String? // buổi học bù này bù cho Attendance nào
+  makeupClassId String? // buổi học bù tính vào lớp nào
+
+  @@unique([sessionId, studentId])
+}
+
+model Invoice {
+  id        String        @id @default(cuid())
+  code      String        @unique
+  studentId String
+  student   Student       @relation(fields: [studentId], references: [id])
+  issueDate DateTime      @default(now())
+  dueDate   DateTime?
+  total     Int
+  paid      Int           @default(0)
+  status    InvoiceStatus @default(UNPAID)
+  note      String?
+  period    String? // 'YYYY-MM' cho phiếu tự tạo hàng tháng
+  items     InvoiceItem[]
+  payments  Payment[]
+
+  @@unique([studentId, period])
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  amount      Int
+}
+
+model Payment {
+  id         String    @id @default(cuid())
+  invoiceId  String
+  invoice    Invoice   @relation(fields: [invoiceId], references: [id])
+  amount     Int
+  method     PayMethod
+  bankTxId   String?   @unique
+  paidAt     DateTime  @default(now())
+  receivedBy String?
+}
+
+model Setting {
+  key   String @id
+  value Json
+}
+
+model AuditLog {
+  id       String   @id @default(cuid())
+  userId   String?
+  action   String
+  entity   String
+  entityId String?
+  diff     Json?
+  at       DateTime @default(now())
+}
+
+model Holiday {
+  id   String   @id @default(cuid())
+  date DateTime @db.Date @unique
+  name String
+}
+
+model Expense {
+  id       String   @id @default(cuid())
+  category String
+  amount   Int
+  date     DateTime @default(now())
+  note     String?
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  content   String
+  done      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Remark {
+  id        String   @id @default(cuid())
+  studentId String
+  classId   String?
+  content   String
+  author    String?
+  createdAt DateTime @default(now())
+}
+
+model Material {
+  id        String   @id @default(cuid())
+  classId   String?
+  title     String
+  url       String
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  dedupe    String?  @unique
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}
+
+model GradeTemplate {
+  id            String        @id @default(cuid())
+  name          String        @unique
+  description   String?
+  formula       String        @default("") // rỗng = trung bình theo trọng số các cột
+  scale         Float         @default(10)
+  missingAsZero Boolean       @default(false)
+  ranks         Json          @default("[]")
+  columns       GradeColumn[]
+  classes       Class[]
+}
+
+model GradeColumn {
+  id         String        @id @default(cuid())
+  templateId String
+  template   GradeTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  name       String
+  key        String
+  weight     Float         @default(1)
+  maxScore   Float         @default(10)
+  order      Int           @default(0)
+  values     GradeValue[]
+
+  @@unique([templateId, key])
+}
+
+model GradeValue {
+  id        String      @id @default(cuid())
+  classId   String
+  studentId String
+  columnId  String
+  column    GradeColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  value     Float
+  comment   String?
+  updatedAt DateTime    @updatedAt
+
+  @@unique([classId, studentId, columnId])
+  @@index([classId])
+}
+
+model Payroll {
+  id         String    @id @default(cuid())
+  teacherId  String
+  month      String // YYYY-MM
+  sessions   Int
+  hours      Float
+  baseAmount Int
+  adjustment Int       @default(0)
+  note       String?
+  status     String    @default("LOCKED") // LOCKED | PAID
+  lockedAt   DateTime  @default(now())
+  paidAt     DateTime?
+  paidBy     String?
+
+  @@unique([teacherId, month])
+}
+
+model StoredFile {
+  id        String   @id @default(cuid())
+  name      String
+  mime      String
+  size      Int
+  data      Bytes
+  isPublic  Boolean  @default(false)
+  createdBy String?
+  createdAt DateTime @default(now())
+}
+
+model PushSub {
+  id       String   @id @default(cuid())
+  userId   String
+  endpoint String   @unique
+  p256dh   String
+  auth     String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
