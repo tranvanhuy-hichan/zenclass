@@ -29,7 +29,7 @@ export async function createStudentWithAccount(d: NewStudent): Promise<Created> 
   const password = genPassword();
   const passwordHash = await bcrypt.hash(password, 10);
   for (let i = 0; i < 8; i++) {
-    const code = genStudentCode(d.fullName);
+    const code = genStudentCode();
     try {
       await db.student.create({
         data: {

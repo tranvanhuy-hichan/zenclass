@@ -7,16 +7,7 @@ export function genPassword(len = 8) {
   return Array.from({ length: len }, () => CHARS[randomInt(CHARS.length)]).join("");
 }
 
-export function genStudentCode(fullName: string) {
-  const initials = fullName
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/đ/gi, "d")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(-3)
-    .map((w) => w[0].toUpperCase())
-    .join("")
-    .padEnd(3, "X");
-  return `${initials}${randomInt(100, 1000)}`;
+/** Mã / tên đăng nhập học viên: HV + 8 chữ số, vd HV48215937. */
+export function genStudentCode() {
+  return `HV${String(randomInt(0, 100_000_000)).padStart(8, "0")}`;
 }

@@ -81,7 +81,9 @@ export function Shell({ role, userName, name, logo, unread, mustChange, children
   const [drawer, setDrawer] = useState(false);
   const [menu, setMenu] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const locked = mustChange && path !== "/doi-mat-khau";
   useEffect(() => setDrawer(false), [path]);
+  useEffect(() => { if (locked) router.replace("/doi-mat-khau"); }, [locked, router]);
   useEffect(() => {
     const h = (e: MouseEvent) => ref.current && !ref.current.contains(e.target as Node) && setMenu(false);
     document.addEventListener("mousedown", h);
@@ -138,9 +140,9 @@ export function Shell({ role, userName, name, logo, unread, mustChange, children
           </div>
         </header>
         {mustChange && path !== "/doi-mat-khau" && (
-          <div className="no-print bg-yellow-100 px-4 py-2 text-sm text-yellow-900">Bạn đang dùng mật khẩu tạm thời. <Link href="/doi-mat-khau" className="font-semibold underline">Đổi mật khẩu ngay</Link></div>
+          <div className="no-print bg-yellow-100 px-4 py-2 text-sm text-yellow-900">Bạn đang dùng mật khẩu tạm thời — hãy đổi mật khẩu để tiếp tục sử dụng hệ thống.</div>
         )}
-        <main className="w-full flex-1 min-w-0 p-4 pb-24 md:p-6 md:pb-6 lg:px-8">{children}</main>
+        <main className="w-full flex-1 min-w-0 p-4 pb-24 md:p-6 md:pb-6 lg:px-8">{locked ? <p className="text-sm text-slate-500">Đang chuyển tới trang đổi mật khẩu...</p> : children}</main>
       </div>
 
       {/* Mobile: thanh dưới + ngăn kéo */}

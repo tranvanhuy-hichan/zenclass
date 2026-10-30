@@ -7,6 +7,14 @@ import { notifyStudent } from "@/lib/notify";
 
 const TEACH = ["ADMIN", "STAFF", "TEACHER"] as const;
 
+/** Giáo viên / trợ giảng chỉ thao tác được trên lớp mình phụ trách. */
+async function assertOwnsClass(me: { id: string; role: string }, classId: string | null) {
+  if (me.role !== "TEACHER") return;
+  if (!classId) throw new Error("Chọn lớp bạn phụ trách");
+  const c = await db.class.findFirst({ where: { id: classId, OR: [{ teacher: { userId: me.id } }, { assistant: { userId: me.id } }] }, select: { id: true } });
+  if (!c) throw new Error("Bạn không phụ trách lớp này");
+}
+
 export const saveGrades = wrap(async (fd) => {
   const me = await assertRole(...TEACH);
   const classId = str(fd, "classId");
@@ -39,22 +47,29 @@ export const addRemark = wrap(async (fd) => {
   const studentId = str(fd, "studentId");
   const content = str(fd, "content");
   if (!content) throw new Error("Nhập nhận xét");
+  await assertOwnsClass(me, opt(fd, "classId"));
   await db.remark.create({ data: { studentId, classId: opt(fd, "classId"), content, author: me.name } });
   await notifyStudent(studentId, "REMARK", "Nhận xét mới từ giáo viên", content);
   revalidatePath(`/hoc-vien/${studentId}`);
+  revalidatePath("/lop-cua-toi", "layout");
   return "Đã gửi nhận xét";
 });
 
 export const addMaterial = wrap(async (fd) => {
-  await assertRole(...TEACH);
+  const me = await assertRole(...TEACH);
+  await assertOwnsClass(me, opt(fd, "classId"));
   const title = str(fd, "title"), url = str(fd, "url");
   if (!title || !/^https?:\/\//.test(url)) throw new Error("Nhập tên và đường dẫn (http/https)");
   await db.material.create({ data: { title, url, classId: opt(fd, "classId") } });
   revalidatePath("/tai-lieu");
+  revalidatePath("/lop-cua-toi", "layout");
 });
 
 export const deleteMaterial = wrap(async (fd) => {
-  await assertRole(...TEACH);
-  await db.material.delete({ where: { id: str(fd, "id") } });
+  const me = await assertRole(...TEACH);
+  const m = await db.material.findUniqueOrThrow({ where: { id: str(fd, "id") } });
+  await assertOwnsClass(me, m.classId);
+  await db.material.delete({ where: { id: m.id } });
   revalidatePath("/tai-lieu");
+  revalidatePath("/lop-cua-toi", "layout");
 });

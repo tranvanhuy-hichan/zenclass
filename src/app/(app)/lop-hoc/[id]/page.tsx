@@ -14,6 +14,7 @@ import { findConflicts } from "@/server/schedule";
 import { ClassFormFields } from "../class-fields";
 import { cancelSession, deleteClass, enrollStudent, setEnrollment, transferStudent, updateClass, updateSchedule } from "../actions";
 import { classAccounts } from "../../hoc-vien/actions";
+import { ImportStudents } from "./import-students";
 
 const TABS = [["overview", "Tổng quan"], ["students", "Học viên"], ["sessions", "Buổi học"], ["grades", "Bảng điểm"], ["settings", "Thông tin & Lịch"]] as const;
 const EN = { ACTIVE: "Đang học", PAUSED: "Bảo lưu", FINISHED: "Hết/chuyển", WAITING: "Chờ", DROPPED: "Nghỉ" } as const;
@@ -69,6 +70,9 @@ export default async function ClassDetail({ params, searchParams }: { params: Pr
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <DialogButton wide variant="secondary" label="Nhập danh sách học viên" title="Nhập danh sách học viên & cấp tài khoản">
+              <ImportStudents classId={id} />
+            </DialogButton>
             <DialogButton label="+ Ghi danh học viên" title="Ghi danh học viên vào lớp">
               <EnrollForm classId={id} />
             </DialogButton>
@@ -147,41 +151,59 @@ export default async function ClassDetail({ params, searchParams }: { params: Pr
       {/* ===== Học viên ===== */}
       {tab === "students" && await (async () => {
         const [list, others] = await Promise.all([
-          db.enrollment.findMany({ where: { classId: id }, include: { student: true }, orderBy: [{ status: "asc" }, { student: { fullName: "asc" } }], skip: pg.skip, take: pg.take }),
+          db.enrollment.findMany({ where: { classId: id }, include: { student: { include: { parent: true } } }, orderBy: [{ status: "asc" }, { student: { fullName: "asc" } }], skip: pg.skip, take: pg.take }),
           db.class.findMany({ where: { finished: false, id: { not: id }, courseId: c.courseId ?? "none" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
         ]);
         return (
           <div className="space-y-3">
-            <Table head={["Học viên", "Đã học", "Trạng thái", "Thao tác"]}>
+            <Table head={["Học viên", "Trạng thái", "Tiến độ", "Phụ huynh", "Thao tác"]}>
               {list.map((e) => {
                 const left = e.totalSessions - e.usedSessions;
+                const pct = Math.min(100, Math.round((e.usedSessions / Math.max(e.totalSessions, 1)) * 100));
+                const hue = [...e.studentId].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 0);
+                const dot = e.status === "ACTIVE" ? "bg-green-500" : e.status === "PAUSED" ? "bg-yellow-400" : "bg-slate-400";
+                const text = e.status === "ACTIVE" ? "text-green-700" : e.status === "PAUSED" ? "text-yellow-700" : "text-slate-500";
                 return (
-                  <tr key={e.id}>
-                    <td><Link data-row className="font-medium text-orange-700 hover:underline" href={`/hoc-vien/${e.studentId}`}>{e.student.fullName}</Link> <span className="text-xs text-slate-500">{e.student.code}</span></td>
-                    <td className="whitespace-nowrap">{e.usedSessions}/{e.totalSessions}{e.status === "ACTIVE" && left <= 3 && <span className="ml-1 rounded-full bg-yellow-100 px-1.5 text-[11px] text-yellow-800">còn {Math.max(left, 0)}</span>}</td>
-                    <td>{EN[e.status]}</td>
+                  <tr key={e.id} className={`align-middle [&>td]:!py-3 ${e.status === "DROPPED" ? "opacity-60" : ""}`}>
                     <td>
-                      <div className="flex flex-wrap items-center gap-1.5">
+                      <div className="flex items-center gap-3">
+                        <span className="grid size-10 shrink-0 place-items-center rounded-full text-sm font-bold" style={{ background: `hsl(${hue} 70% 90%)`, color: `hsl(${hue} 60% 25%)` }}>{e.student.fullName.split(" ").pop()?.[0]}</span>
+                        <div className="min-w-0">
+                          <Link data-row className="block truncate font-semibold hover:text-orange-700" href={`/hoc-vien/${e.studentId}`}>{e.student.fullName}</Link>
+                          <div className="truncate text-xs text-slate-500">{e.student.code}{e.student.phone ? ` · ${e.student.phone}` : ""}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div className={`flex items-center gap-2 text-sm font-semibold ${text}`}><i className={`inline-block size-2 rounded-full ${dot}`} />{EN[e.status]}</div>
+                      {e.status === "ACTIVE" && left <= 3 && <div className="mt-0.5 pl-4 text-xs text-yellow-700">Sắp hết · còn {Math.max(left, 0)} buổi</div>}
+                    </td>
+                    <td className="min-w-40">
+                      <div className="flex items-center gap-2"><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-orange-500" style={{ width: `${pct}%` }} /></div><span className="whitespace-nowrap text-xs tabular-nums text-slate-600">{e.usedSessions}/{e.totalSessions}</span></div>
+                    </td>
+                    <td>{e.student.parent ? <><div className="truncate text-sm">{e.student.parent.fullName}</div><div className="text-xs text-slate-500">{e.student.parent.phone}</div></> : <span className="text-slate-400">—</span>}</td>
+                    <td>
+                      <div className="flex flex-wrap items-center gap-1">
                         {e.status === "ACTIVE" && (
                           <>
-                            <ActionForm action={setEnrollment} submit="Bảo lưu" compact className="inline-flex"><input type="hidden" name="id" value={e.id} /><input type="hidden" name="status" value="PAUSED" /></ActionForm>
-                            <ActionForm action={setEnrollment} submit="Cho nghỉ" compact danger confirmText="Cho học viên nghỉ lớp này?" className="inline-flex"><input type="hidden" name="id" value={e.id} /><input type="hidden" name="status" value="DROPPED" /></ActionForm>
-                            <DialogButton variant="secondary" label="Đổi lớp" title={`Đổi lớp · ${e.student.fullName}`}>
+                            <DialogButton variant="secondary" size="sm" label="Đổi lớp" title={`Đổi lớp · ${e.student.fullName}`}>
                               <ActionForm action={transferStudent} submit="Chuyển lớp" className="flex flex-col gap-3 [&>button]:self-start">
                                 <input type="hidden" name="id" value={e.id} />
                                 <p className="text-sm text-slate-600">Giữ nguyên số buổi còn lại ({Math.max(left, 0)} buổi). Chỉ chuyển được sang lớp cùng khoá{c.course ? ` "${c.course.name}"` : ""}.</p>
                                 <Field label="Chuyển sang lớp"><select name="toClassId" className={inputCls + " w-full"}><option value="">-- chọn lớp --</option>{others.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</select>{!others.length && <span className="text-xs text-red-600">Không có lớp nào khác cùng khoá.</span>}</Field>
                               </ActionForm>
                             </DialogButton>
+                            <ActionForm action={setEnrollment} submit="Bảo lưu" compact ghost className="inline-flex"><input type="hidden" name="id" value={e.id} /><input type="hidden" name="status" value="PAUSED" /></ActionForm>
+                            <ActionForm action={setEnrollment} submit="Cho nghỉ" compact ghost danger confirmText="Cho học viên nghỉ lớp này?" className="inline-flex"><input type="hidden" name="id" value={e.id} /><input type="hidden" name="status" value="DROPPED" /></ActionForm>
                           </>
                         )}
-                        {e.status === "PAUSED" && <ActionForm action={setEnrollment} submit="Học lại" compact className="inline-flex"><input type="hidden" name="id" value={e.id} /><input type="hidden" name="status" value="ACTIVE" /></ActionForm>}
+                        {e.status === "PAUSED" && <ActionForm action={setEnrollment} submit="Học lại" compact ghost className="inline-flex"><input type="hidden" name="id" value={e.id} /><input type="hidden" name="status" value="ACTIVE" /></ActionForm>}
                       </div>
                     </td>
                   </tr>
                 );
               })}
-              {!list.length && <tr><td colSpan={4} className="py-8 text-center text-slate-500">Lớp chưa có học viên.</td></tr>}
+              {!list.length && <tr><td colSpan={5} className="py-8 text-center text-slate-500">Lớp chưa có học viên.</td></tr>}
             </Table>
             <Pagination total={enrollTotal} page={pg.page} size={pg.size} path={base} params={{ tab: "students", size: sp.size }} />
           </div>

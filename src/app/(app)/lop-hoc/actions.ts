@@ -9,6 +9,7 @@ import { appendSession, busyFor, generateSessions, recalcEnrollment, type Busy }
 import { notifyStudent } from "@/lib/notify";
 import { audit } from "@/lib/audit";
 import { assertSameCourse } from "@/server/course-rules";
+import { importStudentsToClass } from "@/server/import-students";
 
 function readSchedules(fd: FormData) {
   const days = fd.getAll("weekday").map(Number);
@@ -215,4 +216,16 @@ export const updateSession = wrap(async (fd) => {
   await db.session.update({ where: { id }, data: { date, startTime, endTime, teacherId, roomId, ...(changed ? { originalTeacherId: sub, ...(sub ? {} : { substituteReason: null, payAmount: null }) } : {}) } });
   revalidatePath("/lich-hoc");
   revalidatePath(`/lop-hoc/${s.classId}`);
+});
+
+/** Dán danh sách học viên → tạo tài khoản, ghi danh; trả JSON để trình duyệt tự tải file CSV. */
+export const importStudents = wrap(async (fd) => {
+  const me = await assertRole(...STAFF_ROLES);
+  const classId = str(fd, "classId");
+  const rows = await importStudentsToClass(classId, String(fd.get("list") ?? ""));
+  await audit(me.id, "import-students", "Class", classId, { count: rows.length });
+  revalidatePath(`/lop-hoc/${classId}`);
+  revalidatePath("/hoc-vien");
+  const enrolled = rows.filter((r) => r.status === "Đã ghi danh").length;
+  return { ok: `Đã tạo ${rows.length} tài khoản, ghi danh ${enrolled} học viên. File mật khẩu đang tự tải về.`, data: { rows: JSON.stringify(rows), className: (await db.class.findUniqueOrThrow({ where: { id: classId } })).name } };
 });

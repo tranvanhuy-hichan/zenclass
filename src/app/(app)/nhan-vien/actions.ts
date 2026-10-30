@@ -1,4 +1,5 @@
 "use server";
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { assertRole } from "@/lib/guard";
@@ -45,5 +46,5 @@ export const changeMyPassword = wrap(async (fd) => {
   const nw = str(fd, "new");
   if (nw.length < 6) throw new Error("Mật khẩu mới tối thiểu 6 ký tự");
   await db.user.update({ where: { id: me.id }, data: { passwordHash: await bcrypt.hash(nw, 10), mustChangePwd: false } });
-  return "Đã đổi mật khẩu";
+  redirect("/");
 });

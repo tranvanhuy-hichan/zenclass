@@ -44,7 +44,7 @@ export const NAV: Record<Role, NavGroup[]> = {
     { title: "Tài chính", items: [{ href: "/tai-chinh", label: "Học phí & Chi phí", icon: Wallet }, { href: "/bao-cao", label: "Báo cáo", icon: BarChart3 }] },
     { title: "Khác", items: [{ href: "/cong", label: "Lương của tôi", icon: Clock }, docs, noti] },
   ],
-  TEACHER: [{ items: [{ ...home, label: "Lịch dạy hôm nay" }, { href: "/lich-hoc", label: "Lịch học", icon: CalendarDays }, { href: "/nhap-diem", label: "Nhập điểm", icon: PenLine }, { href: "/cong", label: "Công của tôi", icon: Clock }, docs, noti] }],
+  TEACHER: [{ items: [{ ...home, label: "Lịch dạy hôm nay" }, { href: "/lich-hoc", label: "Lịch học", icon: CalendarDays }, { href: "/lop-cua-toi", label: "Lớp của tôi", icon: School }, { href: "/nhap-diem", label: "Nhập điểm", icon: PenLine }, { href: "/cong", label: "Công của tôi", icon: Clock }, docs, noti] }],
   STUDENT: [{ items: [{ ...home, label: "Tổng quan" }, { href: "/lich-hoc", label: "Lịch học", icon: CalendarDays }, { href: "/diem-danh-cua-toi", label: "Điểm danh", icon: CalendarCheck }, { href: "/diem-cua-toi", label: "Bảng điểm", icon: ClipboardList }, { href: "/hoc-phi-cua-toi", label: "Học phí", icon: Wallet }, docs, noti] }],
   PARENT: [{ items: [{ ...home, label: "Tổng quan" }, { href: "/lich-hoc", label: "Lịch học", icon: CalendarDays }, { href: "/diem-danh-cua-toi", label: "Điểm danh", icon: CalendarCheck }, { href: "/diem-cua-toi", label: "Bảng điểm", icon: ClipboardList }, { href: "/hoc-phi-cua-toi", label: "Học phí", icon: Wallet }, noti] }],
 };

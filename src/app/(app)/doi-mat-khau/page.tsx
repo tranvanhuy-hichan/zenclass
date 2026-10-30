@@ -1,13 +1,16 @@
 import { requireRole } from "@/lib/guard";
+import { db } from "@/lib/db";
 import { ActionForm } from "@/components/action-form";
 import { Card, Field, inputCls, Title } from "@/components/ui";
 import { changeMyPassword } from "../nhan-vien/actions";
 
 export default async function ChangePassword() {
-  await requireRole();
+  const me = await requireRole();
+  const forced = !!(await db.user.findUnique({ where: { id: me.id }, select: { mustChangePwd: true } }))?.mustChangePwd;
   return (
     <div className=" space-y-4">
-      <Title>Đổi mật khẩu</Title>
+      <Title>{forced ? "Đặt mật khẩu mới" : "Đổi mật khẩu"}</Title>
+      {forced && <Card className="border-orange-300 text-sm">Đây là lần đăng nhập đầu tiên (hoặc mật khẩu vừa được cấp lại). Hãy nhập mật khẩu được cấp ở ô "hiện tại" và đặt mật khẩu mới của bạn để tiếp tục.</Card>}
       <Card><ActionForm action={changeMyPassword} submit="Đổi mật khẩu">
         <Field label="Mật khẩu hiện tại"><input name="old" type="password" className={inputCls} required /></Field>
         <Field label="Mật khẩu mới (tối thiểu 6 ký tự)"><input name="new" type="password" className={inputCls} required /></Field>
