@@ -43,7 +43,7 @@ export function PlanPicker({ current, plans, prices, hasPending }: { current: st
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-50 p-3 text-sm">
         <div>{p && <>Thành tiền <b className="text-lg text-orange-700">{vnd(p.total)}</b>{p.pct > 0 && <span className="ml-2 text-slate-500 line-through">{vnd(p.base)}</span>}<span className="ml-2 text-slate-500">cho {months} tháng</span></>}</div>
-        <button disabled={pending || hasPending || !plan} className="h-10 rounded-md bg-orange-600 px-5 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50">{pending ? "Đang tạo đơn..." : "Tạo đơn & thanh toán"}</button>
+        <button disabled={pending || hasPending || !plan} className="h-11 w-full rounded-md bg-orange-600 px-5 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50 sm:h-10 sm:w-auto">{pending ? "Đang tạo đơn..." : "Tạo đơn & thanh toán"}</button>
       </div>
       {res?.error && <p className="text-sm text-red-600">{res.error}</p>}
       {res?.ok && <p className="text-sm text-green-700">{res.ok}</p>}

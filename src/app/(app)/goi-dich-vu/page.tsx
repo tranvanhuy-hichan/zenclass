@@ -60,8 +60,8 @@ export default async function PlanPage() {
               <h2 className="text-base font-semibold">Đơn {o.code} · chờ thanh toán</h2>
               <p className="text-sm text-slate-600">{PLAN_LABEL[o.plan]} · {o.months} tháng · <b className="text-orange-700">{fmtVnd(o.amount)}</b></p>
             </div>
-            <div className="flex items-center gap-2">
-              {o.checkoutUrl && <a href={o.checkoutUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-10 items-center rounded-md bg-orange-600 px-5 text-sm font-semibold text-white hover:bg-orange-700">Thanh toán ngay</a>}
+            <div className="flex w-full items-center gap-2 sm:w-auto">
+              {o.checkoutUrl && <a href={o.checkoutUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-11 flex-1 items-center justify-center rounded-md bg-orange-600 px-5 text-sm font-semibold text-white hover:bg-orange-700 sm:h-10 sm:flex-none">Thanh toán ngay</a>}
               <ActionForm action={cancelMyOrder} submit="Huỷ đơn" compact ghost danger reset={false} confirmText="Huỷ đơn này?" className="inline-flex"><input type="hidden" name="id" value={o.id} /></ActionForm>
             </div>
           </div>
