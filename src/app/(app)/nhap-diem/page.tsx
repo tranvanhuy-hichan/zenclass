@@ -27,7 +27,6 @@ export default async function GradeEntry({ searchParams }: { searchParams: Promi
   const templates = await db.gradeTemplate.findMany({ orderBy: { name: "asc" } });
   let stats = await gradeStats({ classIds, templateId: sp.templateId || undefined, q: tab === "classes" ? sp.q : undefined });
   if (!sp.all && tab === "classes") stats = stats.filter((c) => !c.finished);
-  const base = (o: Record<string, string>) => `?${new URLSearchParams({ tab, ...o })}`;
 
   return (
     <div className="space-y-4">

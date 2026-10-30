@@ -22,7 +22,6 @@ export default async function MyClass({ params, searchParams }: { params: Promis
     include: { schedules: true, course: true, gradeTemplate: true, room: { include: { branch: true } }, enrollments: { where: { status: { in: ["ACTIVE", "PAUSED"] } }, include: { student: { include: { parent: true } } }, orderBy: { student: { fullName: "asc" } } } },
   });
   if (!c) notFound();
-  const studentIds = c.enrollments.map((e) => e.studentId);
   const [materials, remarks] = await Promise.all([
     db.material.findMany({ where: { classId: id }, orderBy: { createdAt: "desc" } }),
     db.remark.findMany({ where: { classId: id }, orderBy: { createdAt: "desc" }, take: 100 }),

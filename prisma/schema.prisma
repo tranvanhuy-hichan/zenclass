@@ -638,3 +638,19 @@ model PlatformConfig {
   key   String @id
   value Json
 }
+
+/// Link thanh toán PayOS cho một phiếu học phí (kênh PayOS của chính trung tâm).
+model PayLink {
+  tenantId    String   @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
+  id          String   @id @default(cuid())
+  invoiceId   String
+  orderCode   Int
+  amount      Int
+  checkoutUrl String
+  status      String   @default("PENDING") // PENDING | PAID | CANCELLED
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  @@unique([tenantId, orderCode])
+  @@index([tenantId, invoiceId])
+}

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { CalendarClock, CheckCircle2, CircleDollarSign, Wallet } from "lucide-react";
 import { db } from "@/lib/db";
 import { ActionForm } from "@/components/action-form";
@@ -8,6 +7,9 @@ import { Card, Field, inputCls, Title } from "@/components/ui";
 import { PrintButton } from "@/components/print-button";
 import { getSettings } from "@/lib/settings";
 import { vietQrUrl } from "@/lib/vietqr";
+import { getTenantPayos } from "@/lib/tenant-payos";
+import { payInvoice } from "@/app/(app)/tai-chinh/pay-actions";
+import { InvoicePayWatcher } from "@/components/invoice-pay-watcher";
 import { fmtDate, fmtMoney, moneyToWords, todayUTC } from "@/lib/format";
 import { addPayment, refundPayment, voidInvoice } from "@/app/(app)/tai-chinh/actions";
 
@@ -27,6 +29,7 @@ export async function loadInvoice(where: object) {
 /** Chi tiết phiếu học phí — dùng chung cho quản trị (có thao tác) và học viên/phụ huynh (chỉ xem). */
 export async function InvoiceDetail({ inv, staff, admin, back }: { inv: Inv; staff: boolean; admin: boolean; back: { href: string; label: string } }) {
   const st = await getSettings();
+  const online = !!(await getTenantPayos());
   const owed = Math.max(inv.total - inv.paid, 0);
   const overdue = !!inv.dueDate && inv.dueDate < todayUTC() && ["UNPAID", "PARTIAL"].includes(inv.status);
   const hasBank = !!(st.bank.account && st.bank.bank);
@@ -135,7 +138,27 @@ export async function InvoiceDetail({ inv, staff, admin, back }: { inv: Inv; sta
             <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">Thanh toán bằng QR</div>
             {inv.status === "VOID" ? <p className="py-10 font-semibold text-slate-500">Phiếu đã huỷ</p>
             : owed === 0 ? <div className="py-10"><CheckCircle2 className="mx-auto mb-2 size-12 text-green-600" /><p className="font-semibold text-green-700">Đã thanh toán đủ</p></div>
-            : hasBank ? (
+            : online ? (
+              <>
+                <div className="text-2xl font-bold text-orange-700">{fmtMoney(owed)}</div>
+                <ActionForm action={payInvoice} submit="Thanh toán ngay" reset={false} className="flex flex-col gap-2 [&>button]:w-full [&>button]:!h-11 [&>button]:justify-self-stretch">
+                  <input type="hidden" name="invoiceId" value={inv.id} />
+                </ActionForm>
+                <p className="text-xs text-slate-500">Thanh toán qua QR ngân hàng hoặc ví điện tử bằng PayOS. Hệ thống tự gạch nợ ngay khi nhận được tiền.</p>
+                <InvoicePayWatcher invoiceId={inv.id} />
+                {hasBank && (
+                  <details className="rounded-lg border bg-slate-50 p-3 text-left text-sm">
+                    <summary className="cursor-pointer font-medium">Hoặc chuyển khoản thủ công</summary>
+                    <div className="mt-2 space-y-2 text-center">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img alt="VietQR" className="mx-auto w-48" src={vietQrUrl({ bank: st.bank.bank, account: st.bank.account, name: st.bank.name, amount: owed, info })} />
+                      <div className="text-xs text-slate-600">{st.bank.name} · {st.bank.account} · {st.bank.bank}<br />Nội dung CK: <b>{info}</b></div>
+                      <p className="text-xs text-slate-500">Chuyển khoản tay sẽ được trung tâm gạch nợ thủ công.</p>
+                    </div>
+                  </details>
+                )}
+              </>
+            ) : hasBank ? (
               <>
                 <div className="mx-auto w-fit rounded-lg bg-white p-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}

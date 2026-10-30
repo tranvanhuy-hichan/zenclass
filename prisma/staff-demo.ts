@@ -1,5 +1,5 @@
 // Thêm dữ liệu demo Trợ giảng + Giáo vụ và gán vào các lớp hiện có (không xoá dữ liệu khác).
-import { slugClient, slugTenantId } from "../src/lib/db";
+import { slugClient } from "../src/lib/db";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";

@@ -1,4 +1,4 @@
-import { CalendarClock, Check, GraduationCap, Building2 } from "lucide-react";
+import { CalendarClock, GraduationCap, Building2 } from "lucide-react";
 import { db, currentTenantId, rootDb } from "@/lib/db";
 import { requireRole } from "@/lib/guard";
 import { ActionForm } from "@/components/action-form";

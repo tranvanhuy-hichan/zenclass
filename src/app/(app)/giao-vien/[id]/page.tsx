@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BookOpen, CalendarCheck, Clock, Mail, MoreHorizontal, Phone, Users, Wallet, GraduationCap } from "lucide-react";
+import { BookOpen, CalendarCheck, Mail, MoreHorizontal, Phone, Users, Wallet, GraduationCap } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireRole, STAFF_ROLES } from "@/lib/guard";
 import { ActionForm } from "@/components/action-form";
@@ -8,7 +8,7 @@ import { Card, Table, Tabs } from "@/components/ui";
 import { Pagination } from "@/components/pagination";
 import { TeacherFields } from "@/components/person-fields";
 import { getPaging } from "@/lib/paging";
-import { WEEKDAYS, addDays, fmtDate, fmtMoney, todayUTC, roomLabel } from "@/lib/format";
+import { WEEKDAYS, fmtDate, fmtMoney, todayUTC, roomLabel } from "@/lib/format";
 import { computePay, monthRange, PAY_LABEL } from "@/server/payroll";
 import { deleteTeacher, resetUserPassword, updateTeacher } from "../actions";
 

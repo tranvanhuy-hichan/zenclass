@@ -5,10 +5,14 @@ import { ActionForm } from "@/components/action-form";
 import { Card, Field, inputCls, Table, Title } from "@/components/ui";
 import { getSettings } from "@/lib/settings";
 import { fmtDate } from "@/lib/format";
-import { addHoliday, deleteHoliday, saveCenter } from "./actions";
+import { addHoliday, deleteHoliday, removePayos, registerPayosWebhook, savePayos, saveCenter } from "./actions";
+import { currentTenantId } from "@/lib/db";
+import { appUrl } from "@/lib/payos";
+import { getTenantPayos } from "@/lib/tenant-payos";
 
 export default async function Settings() {
   await requireRole("ADMIN");
+  const [payos, tid] = await Promise.all([getTenantPayos({ includeDisabled: true }), currentTenantId()]);
   const [s, holidays, logs] = await Promise.all([
     getSettings(),
     db.holiday.findMany({ orderBy: { date: "asc" }, where: { date: { gte: new Date(Date.now() - 30 * 86400_000) } } }),
@@ -26,6 +30,31 @@ export default async function Settings() {
           <Field label="Tên chủ tài khoản"><input name="accName" defaultValue={s.bank.name} className={inputCls} /></Field>
           <Field label="Cho giáo viên sửa điểm danh trong (ngày)"><input name="maxEditDays" defaultValue={s.maxEditDays} className={inputCls + " w-full"} /></Field>
         </ActionForm>
+      </Card>
+      <Card className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold">Thanh toán online qua PayOS</h2>
+          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${payos?.enabled ? "bg-green-100 text-green-800" : "bg-slate-200 text-slate-600"}`}>{payos?.enabled ? "Đang bật · tự động gạch nợ" : payos ? "Đã lưu khoá · đang tắt" : "Chưa cấu hình · dùng VietQR thường"}</span>
+        </div>
+        <p className="text-sm text-slate-600">Bật PayOS thì phiếu học phí có nút <b>&ldquo;Thanh toán ngay&rdquo;</b>, học viên trả xong hệ thống tự ghi nhận và gạch nợ. Chưa có PayOS thì phiếu vẫn hiện mã VietQR chuyển khoản như hiện nay (khai báo ở khung bên trên). Tiền học phí về thẳng tài khoản của trung tâm.</p>
+        <ActionForm action={savePayos} submit="Lưu PayOS" reset={false} className="flex flex-col gap-3 [&>button]:self-start">
+          <div className="grid gap-3 md:grid-cols-3">
+            <Field label="Client ID"><input name="clientId" autoComplete="off" className={inputCls + " w-full"} placeholder={payos ? `Đã lưu (••••${payos.keys.clientId.slice(-4)}), bỏ trống để giữ` : ""} /></Field>
+            <Field label="API Key"><input name="apiKey" type="password" autoComplete="new-password" className={inputCls + " w-full"} placeholder={payos ? "Đã lưu, bỏ trống để giữ" : ""} /></Field>
+            <Field label="Checksum Key"><input name="checksumKey" type="password" autoComplete="new-password" className={inputCls + " w-full"} placeholder={payos ? "Đã lưu, bỏ trống để giữ" : ""} /></Field>
+          </div>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="enabled" defaultChecked={payos?.enabled ?? true} className="size-4" /> Bật thanh toán online cho học viên và phụ huynh</label>
+        </ActionForm>
+        {payos && (
+          <div className="space-y-2 border-t pt-3 text-sm">
+            <p>Địa chỉ webhook của trung tâm: <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">{appUrl()}/api/webhook/payos/t/{tid}</code></p>
+            <p className="text-slate-600">Bấm nút dưới để hệ thống tự đăng ký địa chỉ này với PayOS, hoặc dán thủ công vào ô Webhook URL của kênh trên PayOS. Chưa đăng ký webhook vẫn dùng được: hệ thống tự kiểm tra trạng thái khi học viên đang ở trang thanh toán.</p>
+            <div className="flex flex-wrap gap-2">
+              <ActionForm action={registerPayosWebhook} submit="Đăng ký webhook với PayOS" reset={false} className="inline-flex" />
+              <ActionForm action={removePayos} submit="Xoá khoá" danger ghost reset={false} confirmText="Xoá khoá PayOS? Phiếu học phí sẽ quay về dùng VietQR thường." className="inline-flex" />
+            </div>
+          </div>
+        )}
       </Card>
       <Card>
         <div className="mb-2 flex items-center justify-between"><h2 className="font-semibold">Ngày nghỉ lễ</h2>

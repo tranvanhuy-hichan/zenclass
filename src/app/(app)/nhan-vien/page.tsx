@@ -3,7 +3,7 @@ import { ViewToggle, pickView } from "@/components/view-toggle";
 import { AutoForm } from "@/components/auto-form";
 import { requireRole } from "@/lib/guard";
 import { ActionForm } from "@/components/action-form";
-import { Card, Field, inputCls, Table, Title } from "@/components/ui";
+import { Field, inputCls, Table, Title } from "@/components/ui";
 import { DialogButton } from "@/components/dialog";
 import { Pagination } from "@/components/pagination";
 import { getPaging } from "@/lib/paging";

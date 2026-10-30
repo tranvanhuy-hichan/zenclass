@@ -7,7 +7,7 @@ import { AutoForm } from "@/components/auto-form";
 import { ActionForm } from "@/components/action-form";
 import { DialogTrigger } from "@/components/dialog";
 import { Field, inputCls, Title } from "@/components/ui";
-import { WEEKDAYS, addDays, fmtDate, isoDate, mondayOf, parseDate, sessionEnded, todayUTC, toMinutes, roomLabel } from "@/lib/format";
+import { WEEKDAYS, addDays, fmtDate, isoDate, mondayOf, parseDate, sessionEnded, todayUTC, roomLabel } from "@/lib/format";
 import { updateSession, cancelSession } from "../lop-hoc/actions";
 
 const hue = (id: string) => { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
@@ -18,30 +18,6 @@ async function load(where: object, kidId?: string) {
     where, orderBy: [{ date: "asc" }, { startTime: "asc" }],
     include: { class: { include: { _count: { select: { enrollments: { where: { status: "ACTIVE" } } } } } }, teacher: true, room: { include: { branch: true } }, attendances: kidId ? { where: { studentId: kidId } } : false },
   });
-}
-
-/** Xếp các buổi chồng giờ thành các làn song song. */
-function lanes(list: S[]) {
-  const out = new Map<string, { lane: number; of: number }>();
-  let cluster: S[] = [], end = -1;
-  const flush = () => {
-    const ends: number[] = [];
-    for (const s of cluster) {
-      const st = toMinutes(s.startTime);
-      let l = ends.findIndex((e) => e <= st);
-      if (l < 0) { l = ends.length; ends.push(0); }
-      ends[l] = toMinutes(s.endTime);
-      out.set(s.id, { lane: l, of: 0 });
-    }
-    for (const s of cluster) out.get(s.id)!.of = ends.length;
-    cluster = [];
-  };
-  for (const s of [...list].sort((a, b) => toMinutes(a.startTime) - toMinutes(b.startTime))) {
-    if (cluster.length && toMinutes(s.startTime) >= end) { flush(); end = -1; }
-    cluster.push(s); end = Math.max(end, toMinutes(s.endTime));
-  }
-  if (cluster.length) flush();
-  return out;
 }
 
 export default async function Schedule({ searchParams }: { searchParams: Promise<{ w?: string; branch?: string; class?: string; teacher?: string; room?: string; view?: string; child?: string; scope?: string }> }) {

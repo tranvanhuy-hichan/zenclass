@@ -1,5 +1,5 @@
 // Tạo/cập nhật tài khoản test cho từng vai trò (gắn vào dữ liệu demo sẵn có).
-import { slugClient, slugTenantId } from "../src/lib/db";
+import { slugClient } from "../src/lib/db";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 

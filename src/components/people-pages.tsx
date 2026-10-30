@@ -24,6 +24,9 @@ const actionsOf = (kind: Kind) => kind === "assistant"
 type SP = { q?: string; page?: string; size?: string; tab?: string; v?: string };
 const btn = "inline-flex h-9 items-center rounded-md bg-orange-600 px-4 text-sm font-medium text-white hover:bg-orange-700";
 
+/** Một dòng danh sách nhân sự (giáo viên / trợ giảng / giáo vụ): các trường khác nhau tuỳ loại nên để mở. */
+type PersonRow = { id: string; fullName: string; phone: string | null; email: string | null; avatarUrl: string | null; specialty?: string | null; position?: string | null; payRate?: number; salary?: number; _count: { classes: number } };
+
 /* ===================== Danh sách (thẻ) ===================== */
 export async function PeopleList({ kind, searchParams }: { kind: Kind; searchParams: Promise<SP> }) {
   const me = await requireRole(...STAFF_ROLES);
@@ -43,7 +46,7 @@ export async function PeopleList({ kind, searchParams }: { kind: Kind; searchPar
       <AutoForm className="flex gap-2"><input type="hidden" name="v" value={view} /><input name="q" defaultValue={q} placeholder="Tìm theo tên, SĐT..." className={inputCls + " flex-1"} /><ViewToggle path={K.base} params={{ q, size: sp.size }} view={view} /></AutoForm>
       {view === "cards" ? (
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        {list.map((p: any) => (
+        {list.map((p: PersonRow) => (
           <Link key={p.id} href={`${K.base}/${p.id}`}>
             <Card className="flex h-full flex-col gap-3 transition-colors hover:border-orange-400">
               <div className="flex items-center gap-3">
@@ -60,7 +63,7 @@ export async function PeopleList({ kind, searchParams }: { kind: Kind; searchPar
               </div>
               <div className="mt-auto grid grid-cols-2 gap-3 border-t pt-3 text-sm">
                 <div><div className="text-xs text-slate-500">Phụ trách</div><b>{p._count.classes}</b> lớp</div>
-                {me.role === "ADMIN" && <div><div className="text-xs text-slate-500">{kind === "assistant" ? "Mức lương" : "Lương tháng"}</div><b>{fmtMoney(kind === "assistant" ? p.payRate : p.salary)}</b></div>}
+                {me.role === "ADMIN" && <div><div className="text-xs text-slate-500">{kind === "assistant" ? "Mức lương" : "Lương tháng"}</div><b>{fmtMoney((kind === "assistant" ? p.payRate : p.salary) ?? 0)}</b></div>}
               </div>
             </Card>
           </Link>
@@ -69,12 +72,12 @@ export async function PeopleList({ kind, searchParams }: { kind: Kind; searchPar
       </div>
       ) : (
         <Table head={[K.label, kind === "assistant" ? "Chuyên môn" : "Chức vụ", "Điện thoại", "Email", "Phụ trách", ...(me.role === "ADMIN" ? [kind === "assistant" ? "Mức lương" : "Lương tháng"] : [])]}>
-          {list.map((p: any) => (
+          {list.map((p: PersonRow) => (
             <tr key={p.id} className="align-middle [&>td]:!py-3">
               <td><Link data-row href={`${K.base}/${p.id}`} className="font-semibold text-orange-700 hover:underline">{p.fullName}</Link></td>
               <td>{(kind === "assistant" ? p.specialty : p.position) ?? "-"}</td><td>{p.phone ?? "-"}</td><td className="max-w-48 truncate">{p.email ?? "-"}</td>
               <td>{p._count.classes} lớp</td>
-              {me.role === "ADMIN" && <td className="tabular-nums">{fmtMoney(kind === "assistant" ? p.payRate : p.salary)}</td>}
+              {me.role === "ADMIN" && <td className="tabular-nums">{fmtMoney((kind === "assistant" ? p.payRate : p.salary) ?? 0)}</td>}
             </tr>
           ))}
           {!list.length && <tr><td colSpan={6} className="py-8 text-center text-slate-500">Chưa có {K.label.toLowerCase()}.</td></tr>}

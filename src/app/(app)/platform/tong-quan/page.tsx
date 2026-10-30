@@ -7,7 +7,7 @@ import { ColumnChart, Donut } from "@/components/charts";
 import { ActionForm } from "@/components/action-form";
 import { fmtDate } from "@/lib/format";
 import { daysLeft, fmtVnd, getPlatformCfg, type PlanCode } from "@/lib/plans";
-import { ORDER_STATUS, PLAN_LABEL, tenantState } from "@/lib/tenants";
+import { PLAN_LABEL, tenantState } from "@/lib/tenants";
 import { confirmOrder } from "../actions";
 
 const short = (n: number) => (n >= 1e6 ? `${(n / 1e6).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} tr` : fmtVnd(n));

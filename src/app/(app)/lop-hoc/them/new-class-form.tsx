@@ -115,7 +115,7 @@ export function NewClassForm({ teachers, assistants, coordinators, rooms, branch
                     {roomBusy && <li>Phòng đã chọn bị trùng: {roomBusy}. Chọn phòng khác hoặc đổi giờ.</li>}
                     {teacherBusy && <li>Giáo viên đã chọn bị trùng: {teacherBusy}. Chọn giáo viên khác hoặc đổi giờ.</li>}
                   </ul>
-                ) : <>✓ Không trùng lịch với lớp nào. {(nBusyT > 0 || nBusyR > 0) && <span className="text-slate-500">Khung giờ này đang có {nBusyR} phòng và {nBusyT} giáo viên bận — đã được đánh dấu "BẬN" trong danh sách chọn.</span>}</>}
+                ) : <>✓ Không trùng lịch với lớp nào. {(nBusyT > 0 || nBusyR > 0) && <span className="text-slate-500">Khung giờ này đang có {nBusyR} phòng và {nBusyT} giáo viên bận — đã được đánh dấu &ldquo;BẬN&rdquo; trong danh sách chọn.</span>}</>}
               </div>
             )}
           </div>

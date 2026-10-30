@@ -18,7 +18,7 @@ export function ResponsiveTable({ children }: { children: React.ReactNode }) {
       table.querySelectorAll("tbody tr").forEach((tr) => {
         Array.from(tr.children).forEach((td, i) => { if (td.getAttribute("data-label") !== (heads[i] ?? "")) td.setAttribute("data-label", heads[i] ?? ""); });
         const has = !!tr.querySelector("a[data-row]");
-        if (has !== tr.hasAttribute("data-clickable")) has ? tr.setAttribute("data-clickable", "") : tr.removeAttribute("data-clickable");
+        if (has !== tr.hasAttribute("data-clickable")) { if (has) tr.setAttribute("data-clickable", ""); else tr.removeAttribute("data-clickable"); }
       });
     };
     label();
