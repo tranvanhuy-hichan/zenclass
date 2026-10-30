@@ -19,6 +19,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const tenant = me.tenantId ? await rootDb.tenant.findUnique({ where: { id: me.tenantId } }) : null;
   if (!tenant) redirect("/login");
   const expired = !!tenant.expiresAt && tenant.expiresAt < new Date();
+  const daysLeft = tenant.expiresAt && !expired ? Math.ceil((tenant.expiresAt.getTime() - Date.now()) / 86400_000) : null;
   // Tạm khoá: chặn hoàn toàn. Hết hạn: quản trị viên vẫn vào được nhưng chỉ ở trang gia hạn; người khác bị chặn.
   if (tenant.status !== "ACTIVE" || (expired && me.role !== "ADMIN")) {
     return (
@@ -40,9 +41,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!u?.isActive) redirect("/login");
   return (
     <Shell role={me.role} userName={me.name} name={st.name} logo={st.theme.logo || "/logo.png"} unread={unread} mustChange={!!u.mustChangePwd} renewOnly={expired}>
-      {me.role === "ADMIN" && tenant.expiresAt && tenant.expiresAt.getTime() - Date.now() < 7 * 86400_000 && (
-        <Link href="/goi-dich-vu" className="mb-4 block rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-2.5 text-sm text-yellow-900">
-          Gói dịch vụ sắp hết hạn vào {tenant.expiresAt.toLocaleDateString("vi-VN")}. <b className="underline">Gia hạn ngay</b> để không bị gián đoạn.
+      {me.role === "ADMIN" && daysLeft != null && daysLeft <= 7 && (
+        <Link href="/goi-dich-vu" className={`mb-4 block rounded-lg border px-4 py-2.5 text-sm ${daysLeft <= 3 ? "border-red-300 bg-red-50 text-red-700" : "border-yellow-300 bg-yellow-50 text-yellow-900"}`}>
+          {daysLeft <= 3 ? "⚠ " : ""}Gói dịch vụ {daysLeft <= 0 ? "hết hạn hôm nay" : `chỉ còn ${daysLeft} ngày`} (đến {tenant.expiresAt!.toLocaleDateString("vi-VN")}). <b className="underline">Gia hạn ngay</b> để không bị gián đoạn.
         </Link>
       )}
       {children}
