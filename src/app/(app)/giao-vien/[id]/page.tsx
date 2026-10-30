@@ -40,9 +40,9 @@ export default async function TeacherDetail({ params, searchParams }: { params: 
   const pay = computePay(t, monthSessions);
 
   const Stat = ({ icon: I, label, value, tone = "bg-orange-100 text-orange-700" }: { icon: typeof Users; label: string; value: React.ReactNode; tone?: string }) => (
-    <Card className="flex items-center gap-3 p-4">
-      <span className={`grid size-10 shrink-0 place-items-center rounded-lg ${tone}`}><I className="size-5" /></span>
-      <div className="min-w-0"><div className="truncate text-xs text-slate-500">{label}</div><div className="truncate text-xl font-bold">{value}</div></div>
+    <Card className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
+      <span className={`grid size-9 shrink-0 place-items-center rounded-lg sm:size-10 ${tone}`}><I className="size-4 sm:size-5" /></span>
+      <div className="min-w-0"><div className="text-xs leading-tight text-slate-500">{label}</div><div className="truncate text-lg font-bold sm:text-xl">{value}</div></div>
     </Card>
   );
   const menuForm = "flex flex-col items-stretch gap-1 [&>button]:w-full [&>button]:justify-self-stretch";
@@ -65,12 +65,12 @@ export default async function TeacherDetail({ params, searchParams }: { params: 
             {t.degree && <span className="flex items-center gap-1"><GraduationCap className="size-4" />{t.degree}</span>}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href={`/lich-hoc?teacher=${t.id}`} className="inline-flex h-9 items-center rounded-md bg-orange-600 px-4 text-sm font-medium text-white hover:bg-orange-700">Xem lịch dạy</Link>
-          <Link href="/giao-vien" className="inline-flex h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50">← Danh sách</Link>
+        <div className="flex w-full items-center gap-2 md:w-auto md:flex-wrap">
+          <Link href={`/lich-hoc?teacher=${t.id}`} className="inline-flex h-9 flex-[1.4] items-center justify-center whitespace-nowrap rounded-md bg-orange-600 px-4 text-sm font-medium text-white hover:bg-orange-700 md:flex-none">Xem lịch dạy</Link>
+          <Link href="/giao-vien" className="hidden h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50 md:inline-flex">← Danh sách</Link>
           {me.role === "ADMIN" && (
-            <details className="relative">
-              <summary className="inline-flex h-9 cursor-pointer list-none items-center gap-1 rounded-md border bg-white px-3 text-sm hover:bg-slate-50"><MoreHorizontal className="size-4" /> Khác</summary>
+            <details className="relative min-w-0 flex-1 md:flex-none">
+              <summary className="inline-flex h-9 w-full cursor-pointer list-none items-center justify-center gap-1 rounded-md border bg-white px-3 text-sm hover:bg-slate-50 md:w-auto"><MoreHorizontal className="size-4" /> Khác</summary>
               <div className="absolute right-0 z-20 mt-1 w-52 rounded-md border bg-white p-2 shadow-lg">
                 <ActionForm action={deleteTeacher} submit="Xoá giáo viên" danger confirmText="Xoá giáo viên này?" className={menuForm}><input type="hidden" name="id" value={t.id} /></ActionForm>
               </div>

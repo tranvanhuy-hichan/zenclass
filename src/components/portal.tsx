@@ -153,7 +153,7 @@ async function FeesView({ kidId, path, sp }: { kidId: string; path: string; sp: 
   ]);
   const paid = sums._sum.paid ?? 0, owed = (sums._sum.total ?? 0) - paid;
   const Stat = ({ icon: I, label, value, tone, vt = "" }: { icon: typeof Wallet; label: string; value: React.ReactNode; tone: string; vt?: string }) => (
-    <Card className="flex items-center gap-3 p-4"><span className={`grid size-10 shrink-0 place-items-center rounded-lg ${tone}`}><I className="size-5" /></span><div className="min-w-0"><div className="truncate text-xs text-slate-500">{label}</div><div className={`truncate text-xl font-bold ${vt}`}>{value}</div></div></Card>
+    <Card className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4"><span className={`grid size-9 shrink-0 place-items-center rounded-lg sm:size-10 ${tone}`}><I className="size-4 sm:size-5" /></span><div className="min-w-0"><div className="text-xs leading-tight text-slate-500">{label}</div><div className={`truncate text-lg font-bold sm:text-xl ${vt}`}>{value}</div></div></Card>
   );
   return (
     <div className="space-y-4">
@@ -222,7 +222,7 @@ async function GradesView({ kidId }: { kidId: string }) {
   const avg = graded.length ? graded.reduce((a, x) => a + x.norm!, 0) / graded.length : null;
   const best = [...graded].sort((a, b) => b.norm! - a.norm!)[0];
   const Stat = ({ icon: I, label, value, tone }: { icon: typeof Wallet; label: string; value: React.ReactNode; tone: string }) => (
-    <Card className="flex items-center gap-3 p-4"><span className={`grid size-10 shrink-0 place-items-center rounded-lg ${tone}`}><I className="size-5" /></span><div className="min-w-0"><div className="truncate text-xs text-slate-500">{label}</div><div className="truncate text-xl font-bold">{value}</div></div></Card>
+    <Card className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4"><span className={`grid size-9 shrink-0 place-items-center rounded-lg sm:size-10 ${tone}`}><I className="size-4 sm:size-5" /></span><div className="min-w-0"><div className="text-xs leading-tight text-slate-500">{label}</div><div className="truncate text-lg font-bold sm:text-xl">{value}</div></div></Card>
   );
   return (
     <div className="space-y-4">
@@ -377,7 +377,7 @@ export async function PortalHome({ searchParams }: { searchParams: Promise<SP> }
   for (const s of week) byDay.set(s.date.getTime(), [...(byDay.get(s.date.getTime()) ?? []), s]);
 
   const Stat = ({ icon: I, label, value, tone = "bg-orange-100 text-orange-700", vt = "" }: { icon: typeof Wallet; label: string; value: React.ReactNode; tone?: string; vt?: string }) => (
-    <Card className="flex items-center gap-3 p-4"><span className={`grid size-10 shrink-0 place-items-center rounded-lg ${tone}`}><I className="size-5" /></span><div className="min-w-0"><div className="truncate text-xs text-slate-500">{label}</div><div className={`truncate text-xl font-bold ${vt}`}>{value}</div></div></Card>
+    <Card className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4"><span className={`grid size-9 shrink-0 place-items-center rounded-lg sm:size-10 ${tone}`}><I className="size-4 sm:size-5" /></span><div className="min-w-0"><div className="text-xs leading-tight text-slate-500">{label}</div><div className={`truncate text-lg font-bold sm:text-xl ${vt}`}>{value}</div></div></Card>
   );
 
   return (

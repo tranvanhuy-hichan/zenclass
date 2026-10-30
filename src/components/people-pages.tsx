@@ -108,7 +108,7 @@ export async function PeopleDetail({ kind, id, searchParams }: { kind: Kind; id:
     db.session.findMany({ where: { class: { [key]: id }, status: "PLANNED", date: { gte: today } }, orderBy: [{ date: "asc" }, { startTime: "asc" }], take: 5, include: { class: true, room: { include: { branch: true } } } }),
   ]);
   const Stat = ({ icon: I, label, value, tone = "bg-orange-100 text-orange-700" }: { icon: typeof Users; label: string; value: React.ReactNode; tone?: string }) => (
-    <Card className="flex items-center gap-3 p-4"><span className={`grid size-10 shrink-0 place-items-center rounded-lg ${tone}`}><I className="size-5" /></span><div className="min-w-0"><div className="truncate text-xs text-slate-500">{label}</div><div className="truncate text-xl font-bold">{value}</div></div></Card>
+    <Card className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4"><span className={`grid size-9 shrink-0 place-items-center rounded-lg sm:size-10 ${tone}`}><I className="size-4 sm:size-5" /></span><div className="min-w-0"><div className="text-xs leading-tight text-slate-500">{label}</div><div className="truncate text-lg font-bold sm:text-xl">{value}</div></div></Card>
   );
 
   return (
@@ -124,7 +124,7 @@ export async function PeopleDetail({ kind, id, searchParams }: { kind: Kind; id:
             {(kind === "assistant" ? p.specialty : p.position) && <span>{kind === "assistant" ? p.specialty : p.position}</span>}
           </div>
         </div>
-        <Link href={K.base} className="inline-flex h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50">← Danh sách</Link>
+        <Link href={K.base} className="hidden h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50 md:inline-flex">← Danh sách</Link>
       </Card>
 
       <Tabs current={`?tab=${tab}`} items={TABS.map(([k, l]) => [`?tab=${k}`, l] as [string, string])} />
