@@ -17,9 +17,10 @@ export function Field({ label, children }: { label: string; children: React.Reac
   );
 }
 export { Tabs } from "@/components/tabs";
-export function Table({ head, children }: { head: string[]; children: React.ReactNode }) {
+/** `bare`: dùng khi bảng đã nằm trong một Card — bỏ khung ngoài để không bị khung lồng khung. */
+export function Table({ head, children, bare = false }: { head: string[]; children: React.ReactNode; bare?: boolean }) {
   return (
-    <div className="overflow-x-auto rounded-lg border bg-white">
+    <div className={bare ? "-mx-1 overflow-x-auto" : "overflow-x-auto rounded-lg border bg-white"}>
       <ResponsiveTable>
         <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
           <tr>{head.map((h, i) => <th key={i} className="px-3 py-2.5 font-semibold">{h}</th>)}</tr>

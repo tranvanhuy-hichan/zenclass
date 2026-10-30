@@ -103,7 +103,7 @@ export async function StudentOverview({ studentId, invoiceBase, sections, attPag
       {show("attendance") && (
       <Card>
         <h2 className="font-semibold mb-2">Điểm danh gần đây</h2>
-        <Table head={["Ngày", "Lớp", "Trạng thái", "Ghi chú"]}>
+        <Table head={["Ngày", "Lớp", "Trạng thái", "Ghi chú"]} bare>
           {attsF(atts).slice(attPaging ? (attPaging.page - 1) * attPaging.size : 0, attPaging ? attPaging.page * attPaging.size : 20).map((a) => (
             <tr key={a.id}><td>{fmtDate(a.session.date)}</td><td>{a.session.class.name}</td><td>{ST[a.status]}</td><td>{a.note}</td></tr>
           ))}
@@ -124,7 +124,7 @@ export async function StudentOverview({ studentId, invoiceBase, sections, attPag
           return (
             <div key={gc.id} className="mb-3">
               <div className="text-sm font-medium">{gc.name}</div>
-              <Table head={[...t.columns.map((c) => c.name), "Tổng", "Xếp loại"]}>
+              <Table head={[...t.columns.map((c) => c.name), "Tổng", "Xếp loại"]} bare>
                 <tr>{t.columns.map((c) => <td key={c.id}>{byCol[c.id] ?? "-"}</td>)}<td className="font-bold">{total ?? "-"}</td><td>{rankOf(total, t.ranks)}</td></tr>
               </Table>
             </div>
@@ -140,7 +140,7 @@ export async function StudentOverview({ studentId, invoiceBase, sections, attPag
       {show("invoices") && (
       <Card>
         <h2 className="font-semibold mb-2">Học phí</h2>
-        <Table head={["Phiếu", "Ngày", "Tổng", "Đã thu", "Trạng thái"]}>
+        <Table head={["Phiếu", "Ngày", "Tổng", "Đã thu", "Trạng thái"]} bare>
           {invoices.map((i) => (
             <tr key={i.id}><td><Link className="underline" href={`${invoiceBase}/${i.id}`}>{i.code}</Link></td><td>{fmtDate(i.issueDate)}</td><td>{fmtMoney(i.total)}</td><td>{fmtMoney(i.paid)}</td><td>{{ UNPAID: "Chưa đóng", PARTIAL: "Đóng một phần", PAID: "Đã đóng", VOID: "Huỷ" }[i.status]}</td></tr>
           ))}
