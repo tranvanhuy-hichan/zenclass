@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { AlertTriangle, BookOpen, CalendarClock, Check, Hourglass, RotateCcw, Trash2, Users, Wallet, Wallet2 } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireRole, teachingIds } from "@/lib/guard";
@@ -78,6 +79,7 @@ function OverdueCard({ data, staff }: { data: Awaited<ReturnType<typeof loadOver
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ child?: string }> }) {
   const me = await requireRole();
+  if (me.role === "SUPERADMIN") redirect("/platform");
   if (me.role === "STUDENT" || me.role === "PARENT") return <PortalHome searchParams={searchParams} />;
 
   const today = todayUTC();

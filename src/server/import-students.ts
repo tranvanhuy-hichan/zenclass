@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { createStudentWithAccount } from "@/server/students";
+import { assertQuota } from "@/server/quota";
 
 export type ImportRow = { fullName: string; username: string; password: string; parentUsername: string; parentPassword: string; status: string };
 
@@ -19,6 +20,7 @@ export async function importStudentsToClass(classId: string, text: string): Prom
   const cls = await db.class.findUniqueOrThrow({ where: { id: classId } });
   const lines = parseStudentLines(text);
   if (!lines.length) throw new Error("Chưa có học viên nào trong danh sách");
+  await assertQuota("students", lines.length);
   if (lines.length > 200) throw new Error("Mỗi lần nhập tối đa 200 học viên");
   const done = await db.session.count({ where: { classId, status: "DONE" } });
   let active = await db.enrollment.count({ where: { classId, status: "ACTIVE" } });

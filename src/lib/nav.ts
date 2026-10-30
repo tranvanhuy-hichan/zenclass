@@ -32,6 +32,7 @@ const TRAIN: NavItem[] = [
 ];
 
 export const NAV: Record<Role, NavGroup[]> = {
+  SUPERADMIN: [{ items: [{ href: "/platform", label: "Trung tâm", icon: Building2 }] }],
   ADMIN: [
     { items: [home] },
     { title: "Đào tạo", items: TRAIN },
@@ -49,10 +50,10 @@ export const NAV: Record<Role, NavGroup[]> = {
   PARENT: [{ items: [{ ...home, label: "Tổng quan" }, { href: "/lich-hoc", label: "Lịch học", icon: CalendarDays }, { href: "/diem-danh-cua-toi", label: "Điểm danh", icon: CalendarCheck }, { href: "/diem-cua-toi", label: "Bảng điểm", icon: ClipboardList }, { href: "/hoc-phi-cua-toi", label: "Học phí", icon: Wallet }, noti] }],
 };
 
-export const ROLE_LABEL: Record<Role, string> = { ADMIN: "Quản trị", STAFF: "Nhân viên", TEACHER: "Giáo viên", STUDENT: "Học viên", PARENT: "Phụ huynh" };
+export const ROLE_LABEL: Record<Role, string> = { SUPERADMIN: "Quản trị nền tảng", ADMIN: "Quản trị", STAFF: "Nhân viên", TEACHER: "Giáo viên", STUDENT: "Học viên", PARENT: "Phụ huynh" };
 
 const TITLES: Record<string, string> = {
-  "lich-hoc": "Lịch học", "lop-hoc": "Lớp học", "hoc-vien": "Học viên", "giao-vien": "Giáo viên", "tro-giang": "Trợ giảng", "giao-vu": "Giáo vụ", "phan-cong": "Phân công lịch dạy", "phong-hoc": "Phòng học", "bang-diem": "Bộ điểm", "nhap-diem": "Nhập điểm", "co-so": "Cơ sở", "khoa-hoc": "Khoá học", "lich-cua-toi": "Lịch học", "diem-danh-cua-toi": "Điểm danh", "diem-cua-toi": "Bảng điểm", "hoc-phi-cua-toi": "Học phí",
+  "lich-hoc": "Lịch học", "lop-hoc": "Lớp học", "hoc-vien": "Học viên", "giao-vien": "Giáo viên", "tro-giang": "Trợ giảng", "giao-vu": "Giáo vụ", "phan-cong": "Phân công lịch dạy", "phong-hoc": "Phòng học", "bang-diem": "Bộ điểm", "nhap-diem": "Nhập điểm", "co-so": "Cơ sở", platform: "Quản trị nền tảng", "khoa-hoc": "Khoá học", "lich-cua-toi": "Lịch học", "diem-danh-cua-toi": "Điểm danh", "diem-cua-toi": "Bảng điểm", "hoc-phi-cua-toi": "Học phí",
   "tai-chinh": "Tài chính", "bao-cao": "Báo cáo", cong: "Chấm công", "nhan-vien": "Nhân viên & Tài khoản", "tai-lieu": "Tài liệu", "thong-bao": "Thông báo",
   "giao-dien": "Giao diện", "cai-dat": "Cài đặt", "doi-mat-khau": "Đổi mật khẩu", "diem-danh": "Điểm danh", diem: "Bảng điểm", "in-lich": "In lịch", "lop-cua-toi": "Lớp của tôi", "hoa-don": "Học phí", them: "Thêm mới",
 };

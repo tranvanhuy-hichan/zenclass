@@ -27,7 +27,7 @@ export const createTemplate = wrap(async (fd) => {
   await assertRole(...STAFF_ROLES);
   const name = str(fd, "name");
   if (!name) throw new Error("Nhập tên bộ điểm");
-  if (await db.gradeTemplate.findUnique({ where: { name } })) throw new Error("Tên bộ điểm đã tồn tại");
+  if (await db.gradeTemplate.findFirst({ where: { name } })) throw new Error("Tên bộ điểm đã tồn tại");
   const cols = PRESETS[str(fd, "preset")] ?? [];
   await db.gradeTemplate.create({
     data: { name, ranks: DEFAULT_RANKS, columns: { create: cols.map((c, i) => ({ ...c, order: i, maxScore: 10 })) } },
@@ -98,7 +98,7 @@ export const duplicateTemplate = wrap(async (fd) => {
   await assertRole(...STAFF_ROLES);
   const t = await db.gradeTemplate.findUniqueOrThrow({ where: { id: str(fd, "id") }, include: { columns: true } });
   let name = `${t.name} (bản sao)`;
-  for (let i = 2; await db.gradeTemplate.findUnique({ where: { name } }); i++) name = `${t.name} (bản sao ${i})`;
+  for (let i = 2; await db.gradeTemplate.findFirst({ where: { name } }); i++) name = `${t.name} (bản sao ${i})`;
   await db.gradeTemplate.create({
     data: { name, description: t.description, formula: t.formula, scale: t.scale, missingAsZero: t.missingAsZero, ranks: t.ranks as object,
       columns: { create: t.columns.map(({ name, key, weight, maxScore, order }) => ({ name, key, weight, maxScore, order })) } },

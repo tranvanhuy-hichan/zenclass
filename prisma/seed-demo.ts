@@ -1,11 +1,12 @@
 // Dữ liệu demo: node: npx tsx prisma/seed-demo.ts  (XOÁ dữ liệu hiện có, trừ tài khoản admin)
+import { slugClient, slugTenantId } from "../src/lib/db";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
 import { seedStaff } from "./staff-demo";
 import { seedBranchesCourses } from "./branches-courses-demo";
 
-const db = new PrismaClient();
+const db = (slugClient() as unknown as PrismaClient);
 let seed = 20261029;
 const rnd = () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 const pick = <T,>(a: T[]) => a[Math.floor(rnd() * a.length)];
@@ -53,8 +54,8 @@ async function main() {
 
   // ---- Cài đặt
   await db.setting.upsert({
-    where: { key: "center" }, update: {},
-    create: { key: "center", value: { name: "Trung tâm Ngoại ngữ & Kỹ năng Sao Mai", bank: { bank: "SHB", account: "0967237399", name: "NGUYEN BA HUNG" }, maxEditDays: 7 } },
+    where: { tenantId_key: { tenantId: await slugTenantId(), key: "center" } }, update: {},
+    create: { tenantId: await slugTenantId(), key: "center", value: { name: "Trung tâm Ngoại ngữ & Kỹ năng Sao Mai", bank: { bank: "SHB", account: "0967237399", name: "NGUYEN BA HUNG" }, maxEditDays: 7 } },
   });
   await db.holiday.createMany({ data: [{ date: D("2026-09-02"), name: "Quốc khánh" }, { date: D("2026-10-20"), name: "Ngày Phụ nữ Việt Nam" }, { date: D("2026-11-20"), name: "Ngày Nhà giáo VN" }, { date: D("2027-01-01"), name: "Tết Dương lịch" }] });
   const holidays = new Set((await db.holiday.findMany()).map((h) => h.date.getTime()));

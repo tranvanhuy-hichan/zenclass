@@ -2,13 +2,13 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 
-export type Role = "ADMIN" | "STAFF" | "TEACHER" | "STUDENT" | "PARENT";
-export type Me = { id: string; name: string; role: Role };
+export type Role = "SUPERADMIN" | "ADMIN" | "STAFF" | "TEACHER" | "STUDENT" | "PARENT";
+export type Me = { id: string; name: string; role: Role; tenantId: string | null };
 
 export async function getMe(): Promise<Me | null> {
   const s = await getServerSession(authOptions);
-  const u = s?.user as { id?: string; name?: string; role?: Role } | undefined;
-  return u?.id ? { id: u.id, name: u.name ?? "", role: u.role! } : null;
+  const u = s?.user as { id?: string; name?: string; role?: Role; tenantId?: string | null } | undefined;
+  return u?.id ? { id: u.id, name: u.name ?? "", role: u.role!, tenantId: u.tenantId ?? null } : null;
 }
 
 /** Dùng trong page: chuyển hướng nếu chưa đăng nhập / sai quyền. */

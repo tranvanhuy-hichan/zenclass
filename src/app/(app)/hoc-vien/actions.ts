@@ -1,6 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { db } from "@/lib/db";
+import { currentTenantId, db } from "@/lib/db";
 import { assertRole, STAFF_ROLES } from "@/lib/guard";
 import { wrap, str, opt } from "@/lib/action";
 import { parseDate } from "@/lib/format";
@@ -62,7 +62,8 @@ export const updateStudent = wrap(async (fd) => {
   let parentId: string | undefined;
   if (d.parentPhone) {
     const pdata = { fullName: d.parentName || "Phụ huynh", email: d.parentEmail, address: d.parentAddress, job: d.parentJob, relation: d.parentRelation };
-    const p = await db.parent.upsert({ where: { phone: d.parentPhone }, update: pdata, create: { phone: d.parentPhone, ...pdata } });
+    const tenantId = (await currentTenantId())!;
+    const p = await db.parent.upsert({ where: { tenantId_phone: { tenantId, phone: d.parentPhone } }, update: pdata, create: { phone: d.parentPhone, ...pdata } });
     parentId = p.id;
   }
   await db.student.update({

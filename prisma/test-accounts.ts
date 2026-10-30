@@ -1,11 +1,12 @@
 // Tạo/cập nhật tài khoản test cho từng vai trò (gắn vào dữ liệu demo sẵn có).
+import { slugClient, slugTenantId } from "../src/lib/db";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
-const db = new PrismaClient();
+const db = (slugClient() as unknown as PrismaClient);
 
 async function setLogin(userId: string, username: string, password: string) {
-  const taken = await db.user.findUnique({ where: { username } });
+  const taken = await db.user.findFirst({ where: { username } });
   if (taken && taken.id !== userId) await db.user.update({ where: { id: taken.id }, data: { username: `${username}-cu-${Date.now()}` } });
   await db.user.update({ where: { id: userId }, data: { username, passwordHash: await bcrypt.hash(password, 10), isActive: true, mustChangePwd: false, failedLogins: 0, lockedUntil: null } });
 }

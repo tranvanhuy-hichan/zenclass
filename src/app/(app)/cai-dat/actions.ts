@@ -1,6 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { db } from "@/lib/db";
+import { currentTenantId, db } from "@/lib/db";
 import { assertRole } from "@/lib/guard";
 import { wrap, str, int } from "@/lib/action";
 import { parseDate } from "@/lib/format";
@@ -23,7 +23,8 @@ export const saveCenter = wrap(async (fd) => {
 export const addHoliday = wrap(async (fd) => {
   await assertRole("ADMIN");
   if (!str(fd, "date")) throw new Error("Chọn ngày");
-  await db.holiday.upsert({ where: { date: parseDate(str(fd, "date")) }, update: { name: str(fd, "name") }, create: { date: parseDate(str(fd, "date")), name: str(fd, "name") || "Nghỉ lễ" } });
+  const tenantId = (await currentTenantId())!;
+  await db.holiday.upsert({ where: { tenantId_date: { tenantId, date: parseDate(str(fd, "date")) } }, update: { name: str(fd, "name") }, create: { date: parseDate(str(fd, "date")), name: str(fd, "name") || "Nghỉ lễ" } });
   revalidatePath("/cai-dat");
   return "Đã thêm. Lịch các lớp sẽ áp dụng khi sinh lại buổi học.";
 });

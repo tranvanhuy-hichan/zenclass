@@ -1,7 +1,7 @@
 "use server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { db } from "@/lib/db";
+import { db, rootDb } from "@/lib/db";
 import { assertRole } from "@/lib/guard";
 import { wrap, str } from "@/lib/action";
 import { createUser, resetPassword } from "@/server/accounts";
@@ -14,7 +14,7 @@ export const createStaff = wrap(async (fd) => {
   const fullName = str(fd, "fullName");
   const role = str(fd, "role") as Role;
   if (!username || !fullName || !["ADMIN", "STAFF"].includes(role)) throw new Error("Thiếu thông tin");
-  if (await db.user.findUnique({ where: { username } })) throw new Error("Tên đăng nhập đã tồn tại");
+  if (await db.user.findFirst({ where: { username } })) throw new Error("Tên đăng nhập đã tồn tại");
   const { user, password } = await createUser(role, username, fullName);
   await audit(me.id, "create", "User", user.id);
   revalidatePath("/nhan-vien");
@@ -39,12 +39,13 @@ export const toggleUser = wrap(async (fd) => {
 });
 
 export const changeMyPassword = wrap(async (fd) => {
-  const me = await assertRole("ADMIN", "STAFF", "TEACHER", "STUDENT", "PARENT");
+  const me = await assertRole("SUPERADMIN", "ADMIN", "STAFF", "TEACHER", "STUDENT", "PARENT");
   const bcrypt = (await import("bcryptjs")).default;
-  const u = await db.user.findUniqueOrThrow({ where: { id: me.id } });
+  const store = me.role === "SUPERADMIN" ? rootDb : db;
+  const u = await store.user.findUniqueOrThrow({ where: { id: me.id } });
   if (!(await bcrypt.compare(str(fd, "old"), u.passwordHash))) throw new Error("Mật khẩu cũ không đúng");
   const nw = str(fd, "new");
   if (nw.length < 6) throw new Error("Mật khẩu mới tối thiểu 6 ký tự");
-  await db.user.update({ where: { id: me.id }, data: { passwordHash: await bcrypt.hash(nw, 10), mustChangePwd: false } });
+  await store.user.update({ where: { id: me.id }, data: { passwordHash: await bcrypt.hash(nw, 10), mustChangePwd: false } });
   redirect("/");
 });

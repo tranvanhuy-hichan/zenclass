@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { currentTenantId, db } from "@/lib/db";
 import { DEFAULT_THEME, sanitizeTheme, type Theme } from "@/lib/theme";
 
 export type Bank = { bank: string; account: string; name: string };
@@ -12,10 +12,12 @@ const DEFAULTS: CenterSettings = {
 };
 
 export async function getSettings(): Promise<CenterSettings> {
-  const r = await db.setting.findUnique({ where: { key: "center" } });
+  const r = await db.setting.findFirst({ where: { key: "center" } });
   const v = (r?.value ?? {}) as Partial<CenterSettings>;
   return { ...DEFAULTS, ...v, theme: sanitizeTheme(v.theme ?? {}) };
 }
 export async function saveSettings(v: CenterSettings) {
-  await db.setting.upsert({ where: { key: "center" }, update: { value: v }, create: { key: "center", value: v } });
+  const tenantId = await currentTenantId();
+  if (!tenantId) throw new Error("Chưa xác định trung tâm");
+  await db.setting.upsert({ where: { tenantId_key: { tenantId, key: "center" } }, update: { value: v }, create: { tenantId, key: "center", value: v } });
 }

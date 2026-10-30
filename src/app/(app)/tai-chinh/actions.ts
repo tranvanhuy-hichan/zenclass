@@ -12,7 +12,7 @@ async function nextCode() {
   const n = await db.invoice.count();
   for (let i = 1; ; i++) {
     const code = `PT${String(n + i).padStart(5, "0")}`;
-    if (!(await db.invoice.findUnique({ where: { code } }))) return code;
+    if (!(await db.invoice.findFirst({ where: { code } }))) return code;
   }
 }
 
