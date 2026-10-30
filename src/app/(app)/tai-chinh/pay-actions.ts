@@ -30,13 +30,13 @@ export const payInvoice = wrap(async (fd) => {
   if (inv.status === "VOID" || owed <= 0) throw new Error("Phiếu này không còn khoản cần thanh toán");
   // huỷ các link cũ chưa trả để mỗi phiếu chỉ có một link còn hiệu lực
   for (const old of await db.payLink.findMany({ where: { invoiceId: inv.id, status: "PENDING" } })) {
-    await cancelPaymentLink(cfg.keys, old.orderCode).catch(() => {});
+    await cancelPaymentLink(cfg.keys, Number(old.orderCode)).catch(() => {});
     await db.payLink.update({ where: { id: old.id }, data: { status: "CANCELLED" } });
   }
   const base = `${appUrl()}${staff ? "/tai-chinh/" : "/hoa-don/"}${inv.id}`;
   const orderCode = Date.now() * 1000 + randomInt(1000);
   const link = await createPaymentLink(cfg.keys, { orderCode, amount: owed, description: `HP ${inv.code}`.slice(0, 25), returnUrl: `${base}?paid=1`, cancelUrl: base });
-  await db.payLink.create({ data: { invoiceId: inv.id, orderCode, amount: owed, checkoutUrl: link.checkoutUrl, createdBy: me.name } });
+  await db.payLink.create({ data: { invoiceId: inv.id, orderCode: BigInt(orderCode), amount: owed, checkoutUrl: link.checkoutUrl, createdBy: me.name } });
   redirect(link.checkoutUrl);
 });
 
@@ -49,7 +49,7 @@ export async function syncInvoicePayLinks(invoiceId: string): Promise<{ paid: nu
   let paid = 0;
   for (const l of links) {
     try {
-      const info = await getPaymentInfo(cfg.keys, l.orderCode);
+      const info = await getPaymentInfo(cfg.keys, Number(l.orderCode));
       if (info.status === "PAID" && info.amountPaid >= l.amount) { await settlePayLink(l.id); paid++; }
       else if (info.status === "CANCELLED" || info.status === "EXPIRED") await db.payLink.update({ where: { id: l.id }, data: { status: "CANCELLED" } });
     } catch { /* thử lại lần sau */ }

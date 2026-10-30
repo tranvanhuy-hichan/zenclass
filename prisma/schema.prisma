@@ -644,7 +644,7 @@ model PayLink {
   tenantId    String   @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id          String   @id @default(cuid())
   invoiceId   String
-  orderCode   Int
+  orderCode   BigInt
   amount      Int
   checkoutUrl String
   status      String   @default("PENDING") // PENDING | PAID | CANCELLED
