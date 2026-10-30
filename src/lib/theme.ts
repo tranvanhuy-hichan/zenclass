@@ -41,7 +41,7 @@ export function sanitizeTheme(t: Partial<Theme>): Theme {
     text: col(t.text, d.text), line: col(t.line, d.line), sidebar: col(t.sidebar, d.sidebar),
     font: font(t.font, d.font), headingFont: font(t.headingFont, d.headingFont),
     fontSize: num(t.fontSize, 12, 20, d.fontSize), radius: num(t.radius, 0, 28, d.radius),
-    logo: typeof t.logo === "string" && /^https?:\/\/[^\s"'<>()]+$/.test(t.logo) ? t.logo : "",
+    logo: typeof t.logo === "string" && (/^https?:\/\/[^\s"'<>()]+$/.test(t.logo) || /^\/api\/files\/[a-z0-9]+$/.test(t.logo)) ? t.logo : "",
     dark: !!t.dark,
   };
 }

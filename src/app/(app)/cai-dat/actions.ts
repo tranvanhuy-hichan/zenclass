@@ -75,3 +75,34 @@ export const registerPayosWebhook = wrap(async () => {
   await confirmWebhook(cfg.keys, url);
   return `Đã đăng ký webhook: ${url}`;
 });
+
+const LOGO_URL = /^\/api\/files\/([a-z0-9]+)$/;
+
+/** Đặt logo riêng của trung tâm (ảnh đã được thu nhỏ ở trình duyệt). Logo cũ bị xoá khỏi kho. */
+export const saveLogo = wrap(async (fd) => {
+  const me = await assertRole("ADMIN");
+  const f = fd.get("file");
+  if (!(f instanceof File) || !f.size) throw new Error("Chọn ảnh logo");
+  if (!/^image\/(png|jpeg|webp)$/.test(f.type)) throw new Error("Logo phải là ảnh PNG, JPG hoặc WebP");
+  if (f.size > 500_000) throw new Error("Logo tối đa 500 KB");
+  const cur = await getSettings();
+  const file = await db.storedFile.create({ data: { name: f.name.slice(0, 80) || "logo", mime: f.type, size: f.size, data: Buffer.from(await f.arrayBuffer()), isPublic: true, createdBy: me.id } });
+  await saveSettings({ ...cur, theme: { ...cur.theme, logo: `/api/files/${file.id}` } });
+  const old = LOGO_URL.exec(cur.theme.logo)?.[1];
+  if (old) await db.storedFile.deleteMany({ where: { id: old } });
+  await audit(me.id, "logo", "Setting");
+  revalidatePath("/", "layout");
+  return "Đã cập nhật logo. Biểu tượng trên thẻ trình duyệt sẽ đổi ở lần tải trang tiếp theo.";
+});
+
+/** Quay về logo mặc định của hệ thống. */
+export const removeLogo = wrap(async () => {
+  const me = await assertRole("ADMIN");
+  const cur = await getSettings();
+  const old = LOGO_URL.exec(cur.theme.logo)?.[1];
+  await saveSettings({ ...cur, theme: { ...cur.theme, logo: "" } });
+  if (old) await db.storedFile.deleteMany({ where: { id: old } });
+  await audit(me.id, "logo-remove", "Setting");
+  revalidatePath("/", "layout");
+  return "Đã dùng logo mặc định của hệ thống";
+});

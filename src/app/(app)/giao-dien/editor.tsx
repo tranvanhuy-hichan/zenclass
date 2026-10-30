@@ -59,8 +59,7 @@ export function ThemeEditor({ initial, name }: { initial: Theme; name: string })
           <input type="range" min={12} max={20} value={t.fontSize} onChange={(e) => set("fontSize", +e.target.value)} /></label>
         <label className="text-xs text-gray-600 flex flex-col gap-1">Độ bo viền thẻ/nút: {t.radius}px
           <input type="range" min={0} max={28} value={t.radius} onChange={(e) => set("radius", +e.target.value)} /></label>
-        <label className="text-xs text-gray-600 flex flex-col gap-1">Logo (link ảnh)
-          <input className={inp} value={t.logo} placeholder="https://..." onChange={(e) => set("logo", e.target.value)} /></label>
+        <div className="text-xs text-gray-600 flex flex-col gap-1">Logo<span className="rounded-md border bg-slate-50 px-3 py-2 text-sm">Đặt logo ở <a href="/cai-dat" className="text-orange-700 underline">Cài đặt → Trung tâm & ngân hàng</a></span></div>
         <label className="text-xs text-gray-600 flex flex-col gap-1">Tên trung tâm
           <input className={inp} value={cname} onChange={(e) => setName(e.target.value)} /></label>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={t.dark} onChange={(e) => set("dark", e.target.checked)} /> Mặc định là chế độ tối (người dùng vẫn tự đổi được bằng nút ☾ trên thanh trên)</label>

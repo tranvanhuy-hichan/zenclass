@@ -9,6 +9,7 @@ import { addHoliday, deleteHoliday, removePayos, registerPayosWebhook, savePayos
 import { currentTenantId } from "@/lib/db";
 import { appUrl } from "@/lib/payos";
 import { getTenantPayos } from "@/lib/tenant-payos";
+import { LogoUploader } from "./logo-uploader";
 
 const TABS = [["center", "Trung tâm & ngân hàng"], ["payos", "Thanh toán PayOS"], ["holidays", "Ngày nghỉ lễ"], ["logs", "Nhật ký"]] as const;
 
@@ -26,6 +27,12 @@ export default async function Settings({ searchParams }: { searchParams: Promise
     <div className="space-y-4">
       <Title>Cài đặt</Title>
       <Tabs current={`?tab=${tab}`} items={TABS.map(([k, l]) => [`?tab=${k}`, l] as [string, string])} />
+      {tab === "center" && (
+        <Card className="mb-4">
+          <h2 className="mb-3 font-semibold">Logo trung tâm</h2>
+          <LogoUploader current={s.theme.logo || "/logo.png"} isDefault={!s.theme.logo} />
+        </Card>
+      )}
       {tab === "center" && (
         <Card>
           <h2 className="font-semibold mb-2">Trung tâm & ngân hàng nhận học phí (VietQR)</h2>

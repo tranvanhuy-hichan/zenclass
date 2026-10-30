@@ -13,7 +13,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (me.role === "SUPERADMIN") {
     const u = await rootDb.user.findUnique({ where: { id: me.id }, select: { mustChangePwd: true, isActive: true } });
     if (!u?.isActive) redirect("/login");
-    return <Shell role={me.role} userName={me.name} name="Quản trị nền tảng" logo="" unread={0} mustChange={!!u.mustChangePwd}>{children}</Shell>;
+    return <Shell role={me.role} userName={me.name} name="Quản trị nền tảng" logo="/logo.png" unread={0} mustChange={!!u.mustChangePwd}>{children}</Shell>;
   }
 
   const tenant = me.tenantId ? await rootDb.tenant.findUnique({ where: { id: me.tenantId } }) : null;
@@ -37,7 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
   if (!u?.isActive) redirect("/login");
   return (
-    <Shell role={me.role} userName={me.name} name={st.name} logo={st.theme.logo} unread={unread} mustChange={!!u.mustChangePwd}>
+    <Shell role={me.role} userName={me.name} name={st.name} logo={st.theme.logo || "/logo.png"} unread={unread} mustChange={!!u.mustChangePwd}>
       {me.role === "ADMIN" && tenant.expiresAt && tenant.expiresAt.getTime() - Date.now() < 7 * 86400_000 && (
         <Link href="/goi-dich-vu" className="mb-4 block rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-2.5 text-sm text-yellow-900">
           Gói dịch vụ sắp hết hạn vào {tenant.expiresAt.toLocaleDateString("vi-VN")}. <b className="underline">Gia hạn ngay</b> để không bị gián đoạn.

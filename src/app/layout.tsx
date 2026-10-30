@@ -6,7 +6,12 @@ import { fontsHref, themeCss } from "@/lib/theme";
 
 export async function generateMetadata(): Promise<Metadata> {
   const s = await getSettings();
-  return { title: s.name, description: "Hệ thống quản lý trung tâm" };
+  // Biểu tượng thẻ trình duyệt: logo riêng của trung tâm (sau khi đăng nhập), nếu chưa có thì logo hệ thống.
+  const own = s.theme.logo;
+  const icons: Metadata["icons"] = own
+    ? { icon: [{ url: own, type: "image/png" }], shortcut: own, apple: own }
+    : { icon: [{ url: "/favicon.ico?v=1", type: "image/x-icon" }, { url: "/favicon.svg?v=1", type: "image/svg+xml" }, { url: "/icon-192.png?v=1", sizes: "192x192", type: "image/png" }, { url: "/icon-512.png?v=1", sizes: "512x512", type: "image/png" }], shortcut: "/favicon.ico?v=1", apple: [{ url: "/apple-touch-icon.png?v=1", sizes: "180x180" }] };
+  return { title: s.name, description: "Hệ thống quản lý trung tâm", icons };
 }
 
 // Mọi trang đều cần phiên đăng nhập / dữ liệu trung tâm: không dựng tĩnh lúc build (build không được chạm CSDL).
