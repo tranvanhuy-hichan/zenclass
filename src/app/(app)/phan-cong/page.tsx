@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AutoForm } from "@/components/auto-form";
+import { MobileCollapse } from "@/components/mobile-collapse";
 import { CalendarClock, Info, Repeat } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireRole, STAFF_ROLES } from "@/lib/guard";
@@ -76,10 +77,10 @@ export default async function Assignment({ searchParams }: { searchParams: Promi
         </DialogButton>
       }>Phân công lịch dạy</Title>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Card className="flex items-center gap-3 p-4"><span className="grid size-10 place-items-center rounded-lg bg-orange-100 text-orange-700"><CalendarClock className="size-5" /></span><div><div className="text-xs text-slate-500">{tab === "history" ? "Tổng buổi dạy thế" : "Buổi trong khoảng đã chọn"}</div><div className="text-xl font-bold">{total}</div></div></Card>
-        <Card className="flex items-center gap-3 p-4"><span className="grid size-10 place-items-center rounded-lg bg-sky-100 text-sky-700"><Repeat className="size-5" /></span><div><div className="text-xs text-slate-500">Buổi dạy thế sắp tới</div><div className="text-xl font-bold">{subCount}</div></div></Card>
-        {isAdmin ? <Card className="p-4 text-sm">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+        <Card className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4"><span className="grid size-9 shrink-0 place-items-center rounded-lg bg-orange-100 text-orange-700 sm:size-10"><CalendarClock className="size-5" /></span><div><div className="text-xs text-slate-500">{tab === "history" ? "Tổng buổi dạy thế" : "Buổi trong khoảng đã chọn"}</div><div className="text-xl font-bold">{total}</div></div></Card>
+        <Card className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4"><span className="grid size-9 shrink-0 place-items-center rounded-lg bg-sky-100 text-sky-700 sm:size-10"><Repeat className="size-5" /></span><div><div className="text-xs text-slate-500">Buổi dạy thế sắp tới</div><div className="text-xl font-bold">{subCount}</div></div></Card>
+        {isAdmin ? <Card className="col-span-2 p-3 text-sm sm:col-span-1 sm:p-4">
           <details>
             <summary className="flex cursor-pointer list-none items-center gap-2 font-medium"><Info className="size-4 text-orange-700" /> Cách tính lương dạy thế</summary>
             <div className="mt-2 space-y-1 text-slate-600">
@@ -90,24 +91,26 @@ export default async function Assignment({ searchParams }: { searchParams: Promi
         </Card> : <div />}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Tabs current={`?tab=${tab}`} items={[["?tab=upcoming", "Buổi sắp tới"], ["?tab=history", "Lịch sử dạy thế"]]} />
-      </div>
+      <Tabs current={`?tab=${tab}`} items={[["?tab=upcoming", "Buổi sắp tới"], ["?tab=history", "Lịch sử dạy thế"]]} />
 
       <Card className="p-3">
         <AutoForm className="flex flex-wrap items-end gap-3">
           <input type="hidden" name="tab" value={tab} />
           {tab === "upcoming" && (
-            <>
-              <div className="flex gap-1">
-                {chips.map(([l, d]) => <Link key={l} href={q({ ...range(d) })} className={`inline-flex h-9 items-center rounded-full border px-3 text-sm ${activeChip === l ? "border-orange-600 bg-orange-600 text-white" : "bg-white hover:bg-slate-50"}`}>{l}</Link>)}
-              </div>
-              <Field label="Từ ngày"><input type="date" name="from" defaultValue={isoDate(from)} className={inputCls} /></Field>
-              <Field label="Đến ngày"><input type="date" name="to" defaultValue={isoDate(to)} className={inputCls} /></Field>
-            </>
+            <div className="grid w-full grid-cols-4 gap-1.5 md:flex md:w-auto md:gap-1">
+              {chips.map(([l, d]) => <Link key={l} href={q({ ...range(d) })} className={`inline-flex h-9 items-center justify-center whitespace-nowrap rounded-full border px-2 text-sm md:px-3 ${activeChip === l ? "border-orange-600 bg-orange-600 text-white" : "bg-white hover:bg-slate-50"}`}>{l}</Link>)}
+            </div>
           )}
-          <Field label="Lớp"><select name="classId" defaultValue={sp.classId ?? ""} className={inputCls}><option value="">Tất cả lớp</option>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
-          <Field label="Giáo viên đang dạy"><select name="teacherId" defaultValue={sp.teacherId ?? ""} className={inputCls}><option value="">Tất cả</option>{teachers.map((t) => <option key={t.id} value={t.id}>{t.fullName}</option>)}</select></Field>
+          <MobileCollapse block active={[sp.classId, sp.teacherId].filter(Boolean).length}>
+            {tab === "upcoming" && (
+              <>
+                <Field label="Từ ngày"><input type="date" name="from" defaultValue={isoDate(from)} className={inputCls + " max-md:w-full"} /></Field>
+                <Field label="Đến ngày"><input type="date" name="to" defaultValue={isoDate(to)} className={inputCls + " max-md:w-full"} /></Field>
+              </>
+            )}
+            <Field label="Lớp"><select name="classId" defaultValue={sp.classId ?? ""} className={inputCls + " max-md:w-full"}><option value="">Tất cả lớp</option>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
+            <Field label="Giáo viên đang dạy"><select name="teacherId" defaultValue={sp.teacherId ?? ""} className={inputCls + " max-md:w-full"}><option value="">Tất cả</option>{teachers.map((t) => <option key={t.id} value={t.id}>{t.fullName}</option>)}</select></Field>
+          </MobileCollapse>
         </AutoForm>
       </Card>
 
@@ -125,20 +128,20 @@ export default async function Assignment({ searchParams }: { searchParams: Promi
                   const busy = busyFor(r);
                   const orig = r.originalTeacherId;
                   return (
-                    <li key={r.id} className={`grid items-center gap-x-4 gap-y-2 px-4 py-3 md:grid-cols-[112px_minmax(0,1fr)_280px_190px] ${orig ? "bg-sky-50/50 shadow-[inset_4px_0_0_0_#0ea5e9]" : ""}`}>
-                      <div className="text-sm font-semibold tabular-nums">{r.startTime} – {r.endTime}</div>
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">{r.class.name}</div>
+                    <li key={r.id} className={`grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1.5 px-4 py-3 md:grid-cols-[112px_minmax(0,1fr)_280px_190px] md:gap-x-4 md:gap-y-2 ${orig ? "bg-sky-50/50 shadow-[inset_4px_0_0_0_#0ea5e9]" : ""}`}>
+                      <div className="text-sm font-semibold tabular-nums max-md:col-start-1 max-md:row-start-1">{r.startTime} – {r.endTime}</div>
+                      <div className="min-w-0 max-md:col-span-2 max-md:row-start-2">
+                        <div className="font-medium md:truncate">{r.class.name}</div>
                         <div className="text-xs text-slate-500">Phòng {roomLabel(r.room) ?? "-"}</div>
                       </div>
-                      <div className="flex min-w-0 items-center gap-2">
+                      <div className="flex min-w-0 items-center gap-2 max-md:col-span-2 max-md:row-start-3">
                         <span className={`grid size-8 shrink-0 place-items-center rounded-full text-xs font-bold ${orig ? "bg-sky-100 text-sky-700" : "bg-orange-100 text-orange-700"}`}>{initial(r.teacher?.fullName)}</span>
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium">{r.teacher?.fullName ?? "Chưa có GV"}</div>
                           {orig ? <div className="truncate text-xs text-sky-700">Dạy thế cho {tName.get(orig) ?? "?"}{r.substituteReason ? ` · ${r.substituteReason}` : ""}{isAdmin && r.payAmount != null ? ` · ${fmtMoney(r.payAmount)}` : ""}</div> : <div className="text-xs text-slate-400">Giáo viên phụ trách</div>}
                         </div>
                       </div>
-                      <div className="flex items-center justify-end gap-1.5">
+                      <div className="flex items-center justify-end gap-1.5 max-md:col-start-2 max-md:row-start-1">
                         {r.status === "PLANNED" ? (
                           <>
                             <DialogButton variant="secondary" size="sm" label={orig ? "Đổi người" : "Dạy thế"} title={`${r.class.name} · ${fmtDate(r.date)} ${r.startTime}-${r.endTime}`}>
