@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AlertTriangle, BookOpen, CalendarClock, Check, Hourglass, RotateCcw, Trash2, Users, Wallet, Wallet2 } from "lucide-react";
+import { AlertTriangle, BookOpen, ChevronDown, CalendarClock, Check, Hourglass, RotateCcw, Trash2, Users, Wallet, Wallet2 } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireRole, teachingIds } from "@/lib/guard";
 import { ActionForm } from "@/components/action-form";
@@ -28,14 +28,17 @@ function TodayList({ sessions }: { sessions: TodaySession[] }) {
   return (
     <ul className="divide-y">
       {sessions.map((s) => (
-        <li key={s.id} className={`flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 ${s.status === "CANCELLED" ? "opacity-60" : ""}`}>
-          <div className="w-28 shrink-0 text-sm font-semibold tabular-nums">{s.startTime}<span className="text-slate-400"> – </span>{s.endTime}</div>
-          <div className="min-w-0 flex-1">
-            <div className="truncate font-medium">{s.class.name}</div>
-            <div className="truncate text-xs text-slate-500">{s.teacher?.fullName ?? "Chưa có GV"} · {roomLabel(s.room) ?? "Chưa có phòng"} · {s.class.mode === "ONLINE" ? "Online" : "Offline"} · {s.class._count.enrollments} HV</div>
+        <li key={s.id} className={`flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-x-4 ${s.status === "CANCELLED" ? "opacity-60" : ""}`}>
+          <div className="flex items-center justify-between gap-2 sm:w-28 sm:shrink-0">
+            <div className="text-sm font-semibold tabular-nums">{s.startTime}<span className="text-slate-400"> – </span>{s.endTime}</div>
+            <span className="sm:hidden">{badge(s)}</span>
           </div>
-          {badge(s)}
-          {s.status !== "CANCELLED" && <Link href={`/diem-danh/${s.id}`} className="inline-flex h-8 items-center rounded-md border bg-white px-3 text-sm font-medium text-orange-700 hover:bg-orange-50">{s.status === "DONE" ? "Xem / sửa" : "Điểm danh"}</Link>}
+          <div className="min-w-0 sm:flex-1">
+            <div className="font-medium sm:truncate">{s.class.name}</div>
+            <div className="text-xs text-slate-500 sm:truncate">{s.teacher?.fullName ?? "Chưa có GV"} · {roomLabel(s.room) ?? "Chưa có phòng"} · {s.class.mode === "ONLINE" ? "Online" : "Offline"} · {s.class._count.enrollments} HV</div>
+          </div>
+          <span className="hidden sm:inline">{badge(s)}</span>
+          {s.status !== "CANCELLED" && <Link href={`/diem-danh/${s.id}`} className="inline-flex h-9 w-full items-center justify-center rounded-md border bg-white px-3 text-sm font-medium text-orange-700 hover:bg-orange-50 sm:h-8 sm:w-auto">{s.status === "DONE" ? "Xem / sửa" : "Điểm danh"}</Link>}
         </li>
       ))}
     </ul>
@@ -60,19 +63,25 @@ function OverdueCard({ data, staff }: { data: Awaited<ReturnType<typeof loadOver
   if (!data.count) return null;
   return (
     <Card className="border-red-300 p-0">
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <h2 className="flex items-center gap-2 font-semibold text-red-600"><AlertTriangle className="size-4" /> Buổi quá giờ chưa xử lý ({data.count})</h2>
-      </div>
-      <p className="px-4 pt-3 text-xs text-slate-500">Buổi đã qua giờ nhưng chưa điểm danh và chưa cho nghỉ. Buổi chưa điểm danh thì <b>không được tính công</b>. {staff ? "Mở buổi để điểm danh bù, hoặc cho nghỉ nếu lớp không học." : "Hãy điểm danh bù, hoặc báo giáo vụ nếu lớp không học."}</p>
-      <ul className="divide-y text-sm">
-        {data.list.map((s) => (
-          <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
-            <div className="min-w-0"><b>{s.class.name}</b><div className="text-xs text-slate-500">{fmtDate(s.date)} · {s.startTime}-{s.endTime}{s.teacher ? ` · ${s.teacher.fullName}` : ""}</div></div>
-            <Link href={`/diem-danh/${s.id}`} className="inline-flex h-8 items-center rounded-md bg-orange-600 px-3 text-xs font-medium text-white hover:bg-orange-700">Điểm danh bù</Link>
-          </li>
-        ))}
-      </ul>
-      {data.count > data.list.length && <div className="border-t px-4 py-2 text-xs text-slate-500">Còn {data.count - data.list.length} buổi nữa. Xem trong <Link href="/lich-hoc" className="text-orange-700 underline">Lịch học</Link> (ô viền đỏ đứt nét).</div>}
+      {/* Thu gọn sẵn (cả máy tính lẫn điện thoại): chỉ hiện tiêu đề và số buổi, bấm để xem danh sách. */}
+      <details className="group">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+          <h2 className="flex items-center gap-2 font-semibold text-red-600"><AlertTriangle className="size-4 shrink-0" /> Buổi quá giờ chưa xử lý ({data.count})</h2>
+          <span className="flex shrink-0 items-center gap-1 text-xs text-slate-500"><span className="group-open:hidden">Xem</span><span className="hidden group-open:inline">Thu gọn</span><ChevronDown className="size-4 transition-transform group-open:rotate-180" /></span>
+        </summary>
+        <div className="border-t">
+          <p className="px-4 pt-3 text-xs text-slate-500">Buổi đã qua giờ nhưng chưa điểm danh và chưa cho nghỉ. Buổi chưa điểm danh thì <b>không được tính công</b>. {staff ? "Mở buổi để điểm danh bù, hoặc cho nghỉ nếu lớp không học." : "Hãy điểm danh bù, hoặc báo giáo vụ nếu lớp không học."}</p>
+          <ul className="divide-y text-sm">
+            {data.list.map((s) => (
+              <li key={s.id} className="flex flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0"><b>{s.class.name}</b><div className="text-xs text-slate-500">{fmtDate(s.date)} · {s.startTime}-{s.endTime}{s.teacher ? ` · ${s.teacher.fullName}` : ""}</div></div>
+                <Link href={`/diem-danh/${s.id}`} className="inline-flex h-9 w-full items-center justify-center rounded-md bg-orange-600 px-3 text-xs font-medium text-white hover:bg-orange-700 sm:h-8 sm:w-auto">Điểm danh bù</Link>
+              </li>
+            ))}
+          </ul>
+          {data.count > data.list.length && <div className="border-t px-4 py-2 text-xs text-slate-500">Còn {data.count - data.list.length} buổi nữa. Xem trong <Link href="/lich-hoc" className="text-orange-700 underline">Lịch học</Link> (ô viền đỏ đang quá giờ).</div>}
+        </div>
+      </details>
     </Card>
   );
 }
@@ -135,9 +144,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
 
   const Stat = ({ icon: I, label, value, href, tone = "bg-orange-100 text-orange-700", valueTone = "" }: { icon: typeof Users; label: string; value: React.ReactNode; href: string; tone?: string; valueTone?: string }) => (
     <Link href={href}>
-      <Card className="flex h-full items-center gap-3 p-4 transition-colors hover:border-orange-400">
-        <span className={`grid size-11 shrink-0 place-items-center rounded-lg ${tone}`}><I className="size-5" /></span>
-        <div className="min-w-0"><div className="truncate text-xs text-slate-500">{label}</div><div className={`truncate text-2xl font-bold leading-tight ${valueTone}`}>{value}</div></div>
+      <Card className="flex h-full items-center gap-2 p-3 transition-colors hover:border-orange-400 sm:gap-3 sm:p-4">
+        <span className={`grid size-9 shrink-0 place-items-center rounded-lg sm:size-11 ${tone}`}><I className="size-4 sm:size-5" /></span>
+        <div className="min-w-0"><div className="truncate text-xs text-slate-500">{label}</div><div className={`truncate text-xl font-bold leading-tight sm:text-2xl ${valueTone}`}>{value}</div></div>
       </Card>
     </Link>
   );
@@ -146,7 +155,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
     <div className="space-y-4">
       <Title>Tổng quan</Title>
       <OverdueCard data={overdueSessions} staff />
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
         <Stat icon={Users} label="Học viên đang học" value={cnt("learning") + cnt("ending") + cnt("makeup")} href="/hoc-vien?tab=learning" />
         <Stat icon={Hourglass} label="Chờ xếp lớp" value={cnt("waiting")} href="/hoc-vien?tab=waiting" tone="bg-sky-100 text-sky-700" />
         <Stat icon={BookOpen} label="Lớp đang mở" value={activeClasses} href="/lop-hoc" tone="bg-green-100 text-green-700" />
