@@ -74,18 +74,20 @@ export default async function StudentDetail({ params, searchParams }: { params: 
             {s.parent && <span className="flex items-center gap-1"><UserRound className="size-4" />{s.parent.relation ?? "PH"}: {s.parent.fullName} · {s.parent.phone}</span>}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full items-center gap-2 md:w-auto md:flex-wrap">
+          <div className="min-w-0 flex-[1.4] md:flex-none [&>button]:w-full [&>button]:whitespace-nowrap md:[&>button]:w-auto">
           <DialogButton label="+ Viết nhận xét" title={`Nhận xét · ${s.fullName}`}>
             <ActionForm action={addRemark} submit="Gửi nhận xét" className="flex flex-col gap-3 [&>button]:self-start">
               <input type="hidden" name="studentId" value={s.id} />
               <textarea name="content" rows={4} className="w-full rounded-md border bg-white px-3 py-2 text-sm" placeholder="Nhận xét về học viên (phụ huynh sẽ nhận được thông báo)" />
             </ActionForm>
           </DialogButton>
+          </div>
           {staff && (
             <>
-              <Link href={`/hoc-vien/${s.id}/in-lich`} target="_blank" className="inline-flex h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50">In lịch học</Link>
-              <details className="relative">
-                <summary className="inline-flex h-9 cursor-pointer list-none items-center gap-1 rounded-md border bg-white px-3 text-sm hover:bg-slate-50"><MoreHorizontal className="size-4" /> Khác</summary>
+              <Link href={`/hoc-vien/${s.id}/in-lich`} target="_blank" className="inline-flex h-9 flex-1 items-center justify-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50 md:flex-none">In lịch học</Link>
+              <details className="relative min-w-0 flex-1 md:flex-none">
+                <summary className="inline-flex h-9 w-full cursor-pointer list-none items-center justify-center gap-1 rounded-md border bg-white px-3 text-sm hover:bg-slate-50 md:w-auto"><MoreHorizontal className="size-4" /> Khác</summary>
                 <div className="absolute right-0 z-20 mt-1 w-56 space-y-1 rounded-md border bg-white p-2 shadow-lg">
                   <ActionForm action={resetStudentPassword} submit="Cấp lại mật khẩu" reset={false} className="flex flex-col items-stretch gap-1 [&>button]:w-full [&>button]:justify-self-stretch" ><input type="hidden" name="id" value={s.id} /></ActionForm>
                   <ActionForm action={toggleDropped} submit={s.dropped ? "Cho học lại" : "Cho nghỉ học"} danger={!s.dropped} confirmText="Xác nhận?" className="flex flex-col items-stretch gap-1 [&>button]:w-full [&>button]:justify-self-stretch"><input type="hidden" name="id" value={s.id} /></ActionForm>
