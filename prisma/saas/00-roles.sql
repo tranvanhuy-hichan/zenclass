@@ -1,0 +1,7 @@
+-- Chạy bằng tài khoản chủ CSDL, đổi mật khẩu trước khi chạy. App dùng role này (DATABASE_URL) nên bị RLS ràng buộc.
+CREATE ROLE app_rw LOGIN PASSWORD 'DOI_MAT_KHAU_O_DAY';
+GRANT USAGE ON SCHEMA public TO app_rw;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO app_rw;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO app_rw;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO app_rw;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO app_rw;

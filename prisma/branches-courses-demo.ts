@@ -1,4 +1,5 @@
 // Thêm dữ liệu demo Cơ sở + Khoá học và gán cho phòng/lớp hiện có (không xoá dữ liệu khác).
+import { slugClient, slugTenantId } from "../src/lib/db";
 import { PrismaClient } from "@prisma/client";
 
 export async function seedBranchesCourses(db: PrismaClient) {
@@ -56,6 +57,6 @@ export async function balanceRooms(db: PrismaClient) {
 }
 
 if (process.argv[1]?.endsWith("branches-courses-demo.ts")) {
-  const db = new PrismaClient();
+  const db = (slugClient() as unknown as PrismaClient);
   (process.argv[2] === "balance" ? balanceRooms(db) : seedBranchesCourses(db)).then((r) => console.log(r)).finally(() => db.$disconnect());
 }

@@ -1,12 +1,12 @@
 import { requireRole } from "@/lib/guard";
-import { db } from "@/lib/db";
+import { db, rootDb } from "@/lib/db";
 import { ActionForm } from "@/components/action-form";
 import { Card, Field, inputCls, Title } from "@/components/ui";
 import { changeMyPassword } from "../nhan-vien/actions";
 
 export default async function ChangePassword() {
   const me = await requireRole();
-  const forced = !!(await db.user.findUnique({ where: { id: me.id }, select: { mustChangePwd: true } }))?.mustChangePwd;
+  const forced = !!(await (me.role === "SUPERADMIN" ? rootDb : db).user.findUnique({ where: { id: me.id }, select: { mustChangePwd: true } }))?.mustChangePwd;
   return (
     <div className=" space-y-4">
       <Title>{forced ? "Đặt mật khẩu mới" : "Đổi mật khẩu"}</Title>

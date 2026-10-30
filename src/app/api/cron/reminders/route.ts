@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { db, rootDb, withTenant } from "@/lib/db";
 import { notifyStudent } from "@/lib/notify";
 import { addDays, isoDate, todayUTC, toMinutes, roomLabel } from "@/lib/format";
 
@@ -6,6 +6,14 @@ import { addDays, isoDate, todayUTC, toMinutes, roomLabel } from "@/lib/format";
 export async function GET(req: Request) {
   if (!process.env.CRON_SECRET || req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`)
     return new Response("Unauthorized", { status: 401 });
+  const tenants = await rootDb.tenant.findMany({ where: { status: "ACTIVE", OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }, select: { id: true, slug: true } });
+  const out: Record<string, unknown> = {};
+  for (const t of tenants) out[t.slug] = await withTenant(t.id, run);
+  return Response.json({ ok: true, tenants: out });
+}
+
+/** Chạy cho đúng một trung tâm (đang nằm trong withTenant). */
+async function run() {
   const nowVN = new Date(Date.now() + 7 * 3600_000);
   const nowMin = nowVN.getUTCHours() * 60 + nowVN.getUTCMinutes();
   const today = todayUTC();
@@ -48,5 +56,5 @@ export async function GET(req: Request) {
   if (old.length) for (const u of staff) {
     try { await db.notification.create({ data: { userId: u.id, type: "ATTEND", title: `${old.length} buổi quá hạn chưa xử lý`, body: "Có buổi học đã qua ngày nhưng chưa điểm danh hoặc cho nghỉ. Mở Trang chủ để xử lý.", dedupe: `stale-day:${isoDate(today)}:${u.id}` } }); sent++; } catch (e) { if ((e as { code?: string }).code !== "P2002") throw e; }
   }
-  return Response.json({ ok: true, checked: sessions.length, invoices: invs.length, stale: stale.length, sent });
+  return { checked: sessions.length, invoices: invs.length, stale: stale.length, sent };
 }

@@ -9,6 +9,7 @@ datasource db {
 }
 
 enum Role {
+  SUPERADMIN
   ADMIN
   STAFF
   TEACHER
@@ -57,6 +58,7 @@ enum PayMethod {
 }
 
 model User {
+  tenantId String? @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id            String    @id @default(cuid())
   username      String    @unique
   passwordHash  String
@@ -74,22 +76,29 @@ model User {
   parent      Parent?
   assistant   Assistant?
   coordinator Coordinator?
+
+  @@index([tenantId])
 }
 
 model Parent {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id       String    @id @default(cuid())
   userId   String?   @unique
   user     User?     @relation(fields: [userId], references: [id])
   fullName String
-  phone    String    @unique
+  phone    String
   email    String?
   address  String?
   job      String?
   relation String?
   students Student[]
+
+  @@index([tenantId])
+  @@unique([tenantId, phone])
 }
 
 model Student {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id               String    @id @default(cuid())
   code             String    @unique
   userId           String?   @unique
@@ -116,9 +125,12 @@ model Student {
   enrollments Enrollment[]
   attendances Attendance[]
   invoices    Invoice[]
+
+  @@index([tenantId])
 }
 
 model Teacher {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id             String    @id @default(cuid())
   userId         String?   @unique
   user           User?     @relation(fields: [userId], references: [id])
@@ -142,20 +154,27 @@ model Teacher {
 
   classes  Class[]   @relation("MainTeacher")
   sessions Session[]
+
+  @@index([tenantId])
 }
 
 model Branch {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id        String   @id @default(cuid())
-  name      String   @unique
+  name      String
   address   String?
   phone     String?
   note      String?
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   rooms     Room[]
+
+  @@index([tenantId])
+  @@unique([tenantId, name])
 }
 
 model Room {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id       String    @id @default(cuid())
   name     String
   capacity Int       @default(20)
@@ -165,12 +184,14 @@ model Room {
   sessions Session[]
 
   @@unique([branchId, name])
+  @@index([tenantId])
 }
 
 /// Khoá học: nhóm các lớp cùng chương trình. Học bù và chuyển lớp chỉ được trong cùng một khoá.
 model Course {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id            String   @id @default(cuid())
-  name          String   @unique
+  name          String
   code          String?
   subject       String?
   level         String?
@@ -180,9 +201,13 @@ model Course {
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
   classes       Class[]
+
+  @@index([tenantId])
+  @@unique([tenantId, name])
 }
 
 model Class {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id              String         @id @default(cuid())
   courseId        String?
   course          Course?        @relation(fields: [courseId], references: [id])
@@ -211,18 +236,24 @@ model Class {
   schedules   ClassSchedule[]
   sessions    Session[]
   enrollments Enrollment[]
+
+  @@index([tenantId])
 }
 
 model ClassSchedule {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id        String @id @default(cuid())
   classId   String
   class     Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
   weekday   Int // 0 = Chủ nhật ... 6 = Thứ 7
   startTime String // "19:00"
   endTime   String // "20:00"
+
+  @@index([tenantId])
 }
 
 model Session {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id                String        @id @default(cuid())
   classId           String
   class             Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
@@ -245,9 +276,11 @@ model Session {
   @@index([classId, date])
   @@index([teacherId, date])
   @@index([roomId, date])
+  @@index([tenantId])
 }
 
 model Enrollment {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id            String           @id @default(cuid())
   studentId     String
   student       Student          @relation(fields: [studentId], references: [id])
@@ -259,9 +292,11 @@ model Enrollment {
   status        EnrollmentStatus @default(ACTIVE)
 
   @@index([studentId, status])
+  @@index([tenantId])
 }
 
 model Attendance {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id            String           @id @default(cuid())
   sessionId     String
   session       Session          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
@@ -276,11 +311,13 @@ model Attendance {
   makeupClassId String? // buổi học bù tính vào lớp nào
 
   @@unique([sessionId, studentId])
+  @@index([tenantId])
 }
 
 model Invoice {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id        String        @id @default(cuid())
-  code      String        @unique
+  code      String
   studentId String
   student   Student       @relation(fields: [studentId], references: [id])
   issueDate DateTime      @default(now())
@@ -294,17 +331,23 @@ model Invoice {
   payments  Payment[]
 
   @@unique([studentId, period])
+  @@index([tenantId])
+  @@unique([tenantId, code])
 }
 
 model InvoiceItem {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id          String  @id @default(cuid())
   invoiceId   String
   invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   description String
   amount      Int
+
+  @@index([tenantId])
 }
 
 model Payment {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id         String    @id @default(cuid())
   invoiceId  String
   invoice    Invoice   @relation(fields: [invoiceId], references: [id])
@@ -313,14 +356,21 @@ model Payment {
   bankTxId   String?   @unique
   paidAt     DateTime  @default(now())
   receivedBy String?
+
+  @@index([tenantId])
 }
 
 model Setting {
-  key   String @id
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
+  key   String
   value Json
+
+  @@index([tenantId])
+  @@id([tenantId, key])
 }
 
 model AuditLog {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id       String   @id @default(cuid())
   userId   String?
   action   String
@@ -328,47 +378,66 @@ model AuditLog {
   entityId String?
   diff     Json?
   at       DateTime @default(now())
+
+  @@index([tenantId])
 }
 
 model Holiday {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id   String   @id @default(cuid())
-  date DateTime @unique @db.Date
+  date DateTime @db.Date
   name String
+
+  @@index([tenantId])
+  @@unique([tenantId, date])
 }
 
 model Expense {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id       String   @id @default(cuid())
   category String
   amount   Int
   date     DateTime @default(now())
   note     String?
+
+  @@index([tenantId])
 }
 
 model Note {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id        String   @id @default(cuid())
   content   String
   done      Boolean  @default(false)
   createdAt DateTime @default(now())
+
+  @@index([tenantId])
 }
 
 model Remark {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id        String   @id @default(cuid())
   studentId String
   classId   String?
   content   String
   author    String?
   createdAt DateTime @default(now())
+
+  @@index([tenantId])
 }
 
 model Material {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id        String   @id @default(cuid())
   classId   String?
   title     String
   url       String
   createdAt DateTime @default(now())
+
+  @@index([tenantId])
 }
 
 model Notification {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id        String   @id @default(cuid())
   userId    String
   type      String
@@ -379,11 +448,13 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@index([userId, read])
+  @@index([tenantId])
 }
 
 model GradeTemplate {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id            String        @id @default(cuid())
-  name          String        @unique
+  name          String
   description   String?
   formula       String        @default("") // rỗng = trung bình theo trọng số các cột
   scale         Float         @default(10)
@@ -391,9 +462,13 @@ model GradeTemplate {
   ranks         Json          @default("[]")
   columns       GradeColumn[]
   classes       Class[]
+
+  @@index([tenantId])
+  @@unique([tenantId, name])
 }
 
 model GradeColumn {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id         String        @id @default(cuid())
   templateId String
   template   GradeTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
@@ -405,9 +480,11 @@ model GradeColumn {
   values     GradeValue[]
 
   @@unique([templateId, key])
+  @@index([tenantId])
 }
 
 model GradeValue {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id        String      @id @default(cuid())
   classId   String
   studentId String
@@ -419,9 +496,11 @@ model GradeValue {
 
   @@unique([classId, studentId, columnId])
   @@index([classId])
+  @@index([tenantId])
 }
 
 model Payroll {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id               String    @id @default(cuid())
   teacherId        String
   month            String // YYYY-MM
@@ -437,9 +516,11 @@ model Payroll {
   paidBy           String?
 
   @@unique([teacherId, month])
+  @@index([tenantId])
 }
 
 model StoredFile {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id        String   @id @default(cuid())
   name      String
   mime      String
@@ -448,9 +529,12 @@ model StoredFile {
   isPublic  Boolean  @default(false)
   createdBy String?
   createdAt DateTime @default(now())
+
+  @@index([tenantId])
 }
 
 model PushSub {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id        String   @id @default(cuid())
   userId    String
   endpoint  String   @unique
@@ -459,10 +543,12 @@ model PushSub {
   createdAt DateTime @default(now())
 
   @@index([userId])
+  @@index([tenantId])
 }
 
 /// Trợ giảng: hỗ trợ giáo viên trong lớp (quản lý riêng với giáo viên)
 model Assistant {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id          String    @id @default(cuid())
   userId      String?   @unique
   user        User?     @relation(fields: [userId], references: [id])
@@ -484,10 +570,13 @@ model Assistant {
   avatarUrl   String?
   createdAt   DateTime  @default(now())
   classes     Class[]
+
+  @@index([tenantId])
 }
 
 /// Giáo vụ: phụ trách vận hành/chăm sóc lớp (quản lý riêng)
 model Coordinator {
+  tenantId String @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
   id          String    @id @default(cuid())
   userId      String?   @unique
   user        User?     @relation(fields: [userId], references: [id])
@@ -507,4 +596,45 @@ model Coordinator {
   avatarUrl   String?
   createdAt   DateTime  @default(now())
   classes     Class[]
+
+  @@index([tenantId])
+}
+
+/// Một trung tâm (khách hàng) thuê hệ thống.
+model Tenant {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  name        String
+  plan        String    @default("TRIAL") // TRIAL | BASIC | PRO | ENTERPRISE
+  status      String    @default("ACTIVE") // ACTIVE | SUSPENDED
+  expiresAt   DateTime?
+  maxStudents Int       @default(100)
+  maxBranches Int       @default(1)
+  note        String?
+  createdAt   DateTime  @default(now())
+}
+
+/// Đơn đăng ký / gia hạn gói dịch vụ của một trung tâm.
+model TenantOrder {
+  tenantId  String   @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
+  id        String   @id @default(cuid())
+  code      String   @unique
+  plan      String
+  months    Int
+  amount    Int
+  status    String   @default("PENDING") // PENDING | PAID | CANCELLED
+  note      String?
+  createdBy String?
+  createdAt DateTime @default(now())
+  paidAt    DateTime?
+  checkoutUrl    String? // link thanh toán PayOS
+  payosOrderCode Int?    @unique
+
+  @@index([tenantId])
+}
+
+/// Cấu hình toàn nền tảng (gói dịch vụ, giảm giá theo kỳ hạn, tài khoản nhận tiền). Chỉ đọc/ghi bằng rootDb.
+model PlatformConfig {
+  key   String @id
+  value Json
 }

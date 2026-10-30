@@ -32,7 +32,7 @@ export const createTeacher = wrap(async (fd) => {
   let msg = "Đã thêm giáo viên";
   let userId: string | undefined;
   if (username) {
-    if (await db.user.findUnique({ where: { username } })) throw new Error("Tên đăng nhập đã tồn tại");
+    if (await db.user.findFirst({ where: { username } })) throw new Error("Tên đăng nhập đã tồn tại");
     const { user, password } = await createUser("TEACHER", username, d.fullName);
     userId = user.id;
     msg += `\nTài khoản: ${username} · Mật khẩu: ${password} (chỉ hiện một lần)`;

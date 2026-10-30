@@ -1,4 +1,5 @@
 // Thêm dữ liệu demo Trợ giảng + Giáo vụ và gán vào các lớp hiện có (không xoá dữ liệu khác).
+import { slugClient, slugTenantId } from "../src/lib/db";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
@@ -38,6 +39,6 @@ export async function seedStaff(db: PrismaClient) {
 }
 
 if (process.argv[1]?.endsWith("staff-demo.ts")) {
-  const db = new PrismaClient();
+  const db = (slugClient() as unknown as PrismaClient);
   seedStaff(db).then((r) => console.log(r)).finally(() => db.$disconnect());
 }

@@ -4,12 +4,14 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { assertRole, STAFF_ROLES } from "@/lib/guard";
 import { wrap, str, opt } from "@/lib/action";
+import { assertQuota } from "@/server/quota";
 
 export const createBranch = wrap(async (fd) => {
   await assertRole(...STAFF_ROLES);
+  await assertQuota("branches");
   const name = str(fd, "name");
   if (!name) throw new Error("Nhập tên cơ sở");
-  if (await db.branch.findUnique({ where: { name } })) throw new Error("Tên cơ sở đã tồn tại");
+  if (await db.branch.findFirst({ where: { name } })) throw new Error("Tên cơ sở đã tồn tại");
   await db.branch.create({ data: { name, address: opt(fd, "address"), phone: opt(fd, "phone"), note: opt(fd, "note") } });
   revalidatePath("/co-so");
 });

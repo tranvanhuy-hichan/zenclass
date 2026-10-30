@@ -14,7 +14,7 @@ function read(fd: FormData) {
 export const createCourse = wrap(async (fd) => {
   await assertRole(...STAFF_ROLES);
   const d = read(fd);
-  if (await db.course.findUnique({ where: { name: d.name } })) throw new Error("Tên khoá học đã tồn tại");
+  if (await db.course.findFirst({ where: { name: d.name } })) throw new Error("Tên khoá học đã tồn tại");
   const c = await db.course.create({ data: d });
   revalidatePath("/khoa-hoc");
   redirect(`/khoa-hoc/${c.id}`);

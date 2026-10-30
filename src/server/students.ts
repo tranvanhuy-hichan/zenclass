@@ -1,7 +1,8 @@
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { genPassword, genStudentCode } from "@/lib/password";
-import { createUser } from "@/server/accounts";
+import { createUser, freeUsername } from "@/server/accounts";
+import { assertQuota } from "@/server/quota";
 
 export type NewStudent = {
   fullName: string; phone?: string | null; dob?: Date | null; address?: string | null; parentName?: string | null; parentPhone?: string | null;
@@ -11,17 +12,17 @@ export type NewStudent = {
 export type Created = { code: string; password: string; fullName: string; parentAccount?: { username: string; password: string } };
 
 export async function createStudentWithAccount(d: NewStudent): Promise<Created> {
+  await assertQuota("students");
   let parentId: string | undefined;
   let parentAccount: Created["parentAccount"];
   if (d.parentPhone) {
-    let p = await db.parent.findUnique({ where: { phone: d.parentPhone } });
+    let p = await db.parent.findFirst({ where: { phone: d.parentPhone } });
     if (!p) {
-      let userId: string | undefined;
-      if (!(await db.user.findUnique({ where: { username: d.parentPhone } }))) {
-        const { user, password } = await createUser("PARENT", d.parentPhone, d.parentName || "Phụ huynh");
-        userId = user.id;
-        parentAccount = { username: d.parentPhone, password };
-      }
+      // Tên đăng nhập của phụ huynh là SĐT; nếu đã bị trung tâm khác dùng thì thêm hậu tố -2, -3...
+      const username = await freeUsername(d.parentPhone);
+      const { user, password } = await createUser("PARENT", username, d.parentName || "Phụ huynh");
+      const userId = user.id;
+      parentAccount = { username, password };
       p = await db.parent.create({ data: { phone: d.parentPhone, fullName: d.parentName || "Phụ huynh", userId, email: d.parentEmail, address: d.parentAddress, job: d.parentJob, relation: d.parentRelation } });
     }
     parentId = p.id;
