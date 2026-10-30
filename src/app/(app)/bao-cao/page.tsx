@@ -14,18 +14,23 @@ export default async function Reports() {
     const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (5 - i), 1));
     return { from: d, to: new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)), label: `T${d.getUTCMonth() + 1}/${String(d.getUTCFullYear()).slice(2)}` };
   });
-  const data = await Promise.all(months.map(async (m) => ({
-    ...m,
-    income: (await db.payment.aggregate({ _sum: { amount: true }, where: { paidAt: { gte: m.from, lt: m.to } } }))._sum.amount ?? 0,
-    expense: (await db.expense.aggregate({ _sum: { amount: true }, where: { date: { gte: m.from, lt: m.to } } }))._sum.amount ?? 0,
-    newStudents: await db.student.count({ where: { createdAt: { gte: m.from, lt: m.to } } }),
-  })));
-  const max = Math.max(1, ...data.flatMap((d) => [d.income, d.expense]));
-  const [att, classes, debt] = await Promise.all([
+  const since = months[0].from;
+  // Một lượt lấy dữ liệu cho cả 6 tháng rồi cộng theo tháng (thay vì 18 truy vấn riêng lẻ), chạy song song với phần còn lại.
+  const [payRows, expRows, stuRows, att, classes, debt] = await Promise.all([
+    db.payment.findMany({ where: { paidAt: { gte: since } }, select: { amount: true, paidAt: true } }),
+    db.expense.findMany({ where: { date: { gte: since } }, select: { amount: true, date: true } }),
+    db.student.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
     db.attendance.groupBy({ by: ["status"], _count: true, where: { status: { not: "PENDING" } } }),
     db.class.findMany({ where: { finished: false }, include: { _count: { select: { enrollments: { where: { status: "ACTIVE" } } } } }, orderBy: { name: "asc" } }),
     db.invoice.aggregate({ _sum: { total: true, paid: true }, where: { status: { in: ["UNPAID", "PARTIAL"] } } }),
   ]);
+  const data = months.map((m) => ({
+    ...m,
+    income: payRows.filter((r) => r.paidAt >= m.from && r.paidAt < m.to).reduce((a, r) => a + r.amount, 0),
+    expense: expRows.filter((r) => r.date >= m.from && r.date < m.to).reduce((a, r) => a + r.amount, 0),
+    newStudents: stuRows.filter((r) => r.createdAt >= m.from && r.createdAt < m.to).length,
+  }));
+  const max = Math.max(1, ...data.flatMap((d) => [d.income, d.expense]));
   const total = att.reduce((s, a) => s + a._count, 0);
   const present = att.filter((a) => ["PRESENT", "LATE"].includes(a.status)).reduce((s, a) => s + a._count, 0);
   return (

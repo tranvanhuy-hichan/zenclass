@@ -8,6 +8,7 @@ import clsx from "clsx";
 import { NAV, ROLE_LABEL, titleOf, type NavGroup, type NavItem } from "@/lib/nav";
 import type { Role } from "@/lib/guard";
 import { ModeToggle } from "@/components/layout/mode-toggle";
+import { getUnreadCount } from "@/lib/unread";
 
 const isActive = (path: string, href: string) => (href === "/" ? path === "/" : path === href || path.startsWith(href + "/"));
 
@@ -78,8 +79,17 @@ export function Shell({ role, userName, name, logo, unread, mustChange, renewOnl
   const router = useRouter();
   // Gói đã hết hạn: chỉ còn trang gia hạn (và đổi mật khẩu).
   const groups = renewOnly ? [{ items: [{ href: "/goi-dich-vu", label: "Gia hạn gói dịch vụ", icon: Landmark }] }] : NAV[role];
-  const badges = { "/thong-bao": unread };
+  const [count, setCount] = useState(unread);
+  const badges = { "/thong-bao": count };
   const [drawer, setDrawer] = useState(false);
+  // Số thông báo chưa đọc lấy sau khi trang đã hiện (không chặn lần tải đầu), làm mới mỗi phút và khi đổi trang.
+  useEffect(() => {
+    let alive = true;
+    const load = () => getUnreadCount().then((n) => alive && setCount(n)).catch(() => {});
+    load();
+    const t = setInterval(load, 60_000);
+    return () => { alive = false; clearInterval(t); };
+  }, [path]);
   const [menu, setMenu] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const renewBlocked = renewOnly && path !== "/goi-dich-vu" && path !== "/doi-mat-khau";
@@ -126,7 +136,7 @@ export function Shell({ role, userName, name, logo, unread, mustChange, renewOnl
           <ModeToggle />
           <Link href="/thong-bao" className="relative rounded-md p-2 hover:bg-slate-100" aria-label="Thông báo">
             <Bell className="size-5" />
-            {unread > 0 && <span className="absolute right-0.5 top-0.5 rounded-full bg-red-700 px-1 text-[10px] leading-4 font-bold text-white">{unread}</span>}
+            {count > 0 && <span className="absolute right-0.5 top-0.5 rounded-full bg-red-700 px-1 text-[10px] leading-4 font-bold text-white">{count}</span>}
           </Link>
           <div className="relative" ref={ref}>
             <button onClick={() => setMenu((o) => !o)} className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-slate-100">

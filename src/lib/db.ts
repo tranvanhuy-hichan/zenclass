@@ -28,7 +28,10 @@ function tune(url: string | undefined, conns: number) {
 }
 
 const g = globalThis as unknown as { base?: PrismaClient; root?: PrismaClient };
-const base = g.base ?? new PrismaClient({ datasourceUrl: tune(process.env.DATABASE_URL, 3) });
+const debug = process.env.DB_DEBUG === "1";
+const base = g.base ?? new PrismaClient({ datasourceUrl: tune(process.env.DATABASE_URL, 3), ...(debug ? { log: [{ emit: "event", level: "query" }] } : {}) });
+// DB_DEBUG=1: in từng câu SQL để đếm số lượt truy vấn mỗi trang
+if (debug && !g.base) (base as unknown as { $on: (e: string, cb: (q: { query: string; duration: number }) => void) => void }).$on("query", (q) => console.log("[sql]", q.duration + "ms", q.query.replace(/\s+/g, " ").slice(0, 90)));
 export const rootDb = g.root ?? new PrismaClient({ datasourceUrl: tune(process.env.ROOT_DATABASE_URL ?? process.env.DIRECT_URL, 2) });
 if (process.env.NODE_ENV !== "production") { g.base = base; g.root = rootDb; }
 

@@ -1,5 +1,6 @@
 import { rootDb } from "@/lib/db";
 import { addMonths, getPlatformCfg, type PlanCode } from "@/lib/plans";
+import { bustTenant } from "@/lib/tenant-cache";
 
 const DAY = 86400_000;
 
@@ -15,7 +16,7 @@ const DAY = 86400_000;
  */
 export async function applyOrder(orderId: string) {
   const cfg = await getPlatformCfg();
-  return rootDb.$transaction(async (tx) => {
+  const r = await rootDb.$transaction(async (tx) => {
     const o = await tx.tenantOrder.findUniqueOrThrow({ where: { id: orderId } });
     const flip = await tx.tenantOrder.updateMany({ where: { id: o.id, status: { not: "PAID" } }, data: { status: "PAID", paidAt: new Date() } });
     const t = await tx.tenant.findUniqueOrThrow({ where: { id: o.tenantId } });
@@ -37,4 +38,6 @@ export async function applyOrder(orderId: string) {
     await tx.tenant.update({ where: { id: t.id }, data: { plan, status: "ACTIVE", expiresAt, maxStudents: cfg.plans[plan].maxStudents, maxBranches: cfg.plans[plan].maxBranches } });
     return { already: false as const, tenantId: t.id, name: t.name, bonusDays };
   });
+  bustTenant(r.tenantId);
+  return r;
 }

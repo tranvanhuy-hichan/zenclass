@@ -7,6 +7,7 @@ import { wrap, str, int } from "@/lib/action";
 import { createUser, resetPassword } from "@/server/accounts";
 import { addMonths, getPlatformCfg, PLAN_ORDER, type PlanCode, type PlatformCfg } from "@/lib/plans";
 import { applyOrder } from "@/server/orders";
+import { bustTenant } from "@/lib/tenant-cache";
 import { appUrl, cancelPaymentLink, confirmWebhook, platformKeys } from "@/lib/payos";
 import { getSettings, saveSettings } from "@/lib/settings";
 
@@ -51,6 +52,7 @@ export const updateTenant = wrap(async (fd) => {
       note: str(fd, "note") || null,
     },
   });
+  bustTenant(id);
   revalidatePath("/platform"); revalidatePath(`/platform/${id}`);
 });
 
@@ -77,6 +79,7 @@ export const deleteTenant = wrap(async (fd) => {
   }
   if (tables.length) throw new Error("Không xoá hết dữ liệu: " + tables.join(", "));
   await rootDb.tenant.delete({ where: { id } });
+  bustTenant(id);
   revalidatePath("/platform");
   redirect("/platform");
 });
@@ -113,6 +116,7 @@ export const grantMonths = wrap(async (fd) => {
   const t = await rootDb.tenant.findUniqueOrThrow({ where: { id } });
   const start = t.expiresAt && t.expiresAt > new Date() ? t.expiresAt : new Date();
   await rootDb.tenant.update({ where: { id }, data: { expiresAt: addMonths(start, months), status: "ACTIVE" } });
+  bustTenant(id);
   revalidatePath("/platform", "layout");
   return `Đã cộng ${months} tháng`;
 });

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getMe } from "@/lib/guard";
 import { db, rootDb } from "@/lib/db";
+import { getTenant } from "@/lib/tenant-cache";
 import { getSettings } from "@/lib/settings";
 import { Shell } from "@/components/layout/shell";
 
@@ -16,7 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     return <Shell role={me.role} userName={me.name} name="Quản trị nền tảng" logo="/logo.png" unread={0} mustChange={!!u.mustChangePwd}>{children}</Shell>;
   }
 
-  const tenant = me.tenantId ? await rootDb.tenant.findUnique({ where: { id: me.tenantId } }) : null;
+  const tenant = me.tenantId ? await getTenant(me.tenantId) : null;
   if (!tenant) redirect("/login");
   const expired = !!tenant.expiresAt && tenant.expiresAt < new Date();
   const daysLeft = tenant.expiresAt && !expired ? Math.ceil((tenant.expiresAt.getTime() - Date.now()) / 86400_000) : null;
@@ -33,14 +34,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     );
   }
 
-  const [st, unread, u] = await Promise.all([
+  const [st, u] = await Promise.all([
     getSettings(),
-    db.notification.count({ where: { userId: me.id, read: false } }),
     db.user.findUnique({ where: { id: me.id }, select: { mustChangePwd: true, isActive: true } }),
   ]);
   if (!u?.isActive) redirect("/login");
   return (
-    <Shell role={me.role} userName={me.name} name={st.name} logo={st.theme.logo || "/logo.png"} unread={unread} mustChange={!!u.mustChangePwd} renewOnly={expired}>
+    <Shell role={me.role} userName={me.name} name={st.name} logo={st.theme.logo || "/logo.png"} unread={0} mustChange={!!u.mustChangePwd} renewOnly={expired}>
       {me.role === "ADMIN" && daysLeft != null && daysLeft <= 7 && (
         <Link href="/goi-dich-vu" className={`mb-4 block rounded-lg border px-4 py-2.5 text-sm ${daysLeft <= 3 ? "border-red-300 bg-red-50 text-red-700" : "border-yellow-300 bg-yellow-50 text-yellow-900"}`}>
           {daysLeft <= 3 ? "⚠ " : ""}Gói dịch vụ {daysLeft <= 0 ? "hết hạn hôm nay" : `chỉ còn ${daysLeft} ngày`} (đến {tenant.expiresAt!.toLocaleDateString("vi-VN")}). <b className="underline">Gia hạn ngay</b> để không bị gián đoạn.

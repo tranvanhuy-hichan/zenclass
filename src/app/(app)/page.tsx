@@ -84,12 +84,13 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
 
   const today = todayUTC();
   const t = me.role === "TEACHER" ? await teachingIds(me.id) : null;
-  const sessions = await db.session.findMany({
+  // Bắt đầu truy vấn buổi học ngay, chạy song song với các truy vấn còn lại bên dưới.
+  const sessionsQ = db.session.findMany({
     where: { date: today, ...(t ? { OR: [{ teacherId: t.teacherId ?? "-" }, { class: { assistantId: t.assistantId ?? "-" } }] } : {}) },
     orderBy: { startTime: "asc" },
     include: { class: { select: { name: true, mode: true, _count: { select: { enrollments: { where: { status: "ACTIVE" } } } } } }, teacher: { select: { fullName: true } }, room: { select: { name: true, branch: { select: { name: true } } } } },
   });
-  const todayCard = (
+  const todayCard = (sessions: TodaySession[]) => (
     <Card className="p-0">
       <div className="flex items-center justify-between border-b px-4 py-3">
         <h2 className="flex items-center gap-2 font-semibold"><CalendarClock className="size-4 text-orange-700" /> {t ? "Lịch dạy hôm nay" : "Lịch học hôm nay"} ({sessions.length})</h2>
@@ -99,29 +100,34 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
     </Card>
   );
   if (t || me.role === "TEACHER") {
-    const mine = await loadOverdue({ OR: [{ teacherId: t?.teacherId ?? "-" }, { class: { assistantId: t?.assistantId ?? "-" } }] });
-    return <div className="space-y-4"><Title>Xin chào, {me.name}</Title><OverdueCard data={mine} staff={false} />{todayCard}</div>;
+    const [sessions, mine] = await Promise.all([sessionsQ, loadOverdue({ OR: [{ teacherId: t?.teacherId ?? "-" }, { class: { assistantId: t?.assistantId ?? "-" } }] })]);
+    return <div className="space-y-4"><Title>Xin chào, {me.name}</Title><OverdueCard data={mine} staff={false} />{todayCard(sessions)}</div>;
   }
-  const overdueSessions = await loadOverdue({});
 
   const months = Array.from({ length: 6 }, (_, i) => {
     const nowVN = new Date(Date.now() + 7 * 3600_000);
     const d = new Date(Date.UTC(nowVN.getUTCFullYear(), nowVN.getUTCMonth() - (5 - i), 1));
     return { from: d, to: new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)), label: `T${d.getUTCMonth() + 1}` };
   });
-  const [students, activeClasses, debt, notes, overdue, overdueCount, flow] = await Promise.all([
+  const since = months[0].from;
+  const [sessions, overdueSessions, students, activeClasses, debt, notes, overdue, overdueCount, payRows, expRows] = await Promise.all([
+    sessionsQ,
+    loadOverdue({}),
     loadStudents(),
     db.class.count({ where: { finished: false } }),
     db.invoice.aggregate({ _sum: { total: true, paid: true }, where: { status: { in: ["UNPAID", "PARTIAL"] } } }),
     db.note.findMany({ orderBy: [{ done: "asc" }, { createdAt: "desc" }], take: 12 }),
     db.invoice.findMany({ where: { status: { in: ["UNPAID", "PARTIAL"] }, dueDate: { lt: today } }, orderBy: { dueDate: "asc" }, take: 5, include: { student: true } }),
     db.invoice.count({ where: { status: { in: ["UNPAID", "PARTIAL"] }, dueDate: { lt: today } } }),
-    Promise.all(months.map(async (m) => ({
-      label: m.label,
-      income: (await db.payment.aggregate({ _sum: { amount: true }, where: { paidAt: { gte: m.from, lt: m.to } } }))._sum.amount ?? 0,
-      expense: (await db.expense.aggregate({ _sum: { amount: true }, where: { date: { gte: m.from, lt: m.to } } }))._sum.amount ?? 0,
-    }))),
+    // Thu/chi 6 tháng: lấy một lần rồi cộng theo tháng (thay vì 12 truy vấn riêng lẻ).
+    db.payment.findMany({ where: { paidAt: { gte: since } }, select: { amount: true, paidAt: true } }),
+    db.expense.findMany({ where: { date: { gte: since } }, select: { amount: true, date: true } }),
   ]);
+  const flow = months.map((m) => ({
+    label: m.label,
+    income: payRows.filter((r) => r.paidAt >= m.from && r.paidAt < m.to).reduce((a, r) => a + r.amount, 0),
+    expense: expRows.filter((r) => r.date >= m.from && r.date < m.to).reduce((a, r) => a + r.amount, 0),
+  }));
   const cnt = (k: string) => students.filter((s) => s.status === k).length;
   const owed = (debt._sum.total ?? 0) - (debt._sum.paid ?? 0);
   const ending = students.filter((s) => s.status === "ending" || (s.remain != null && s.remain <= 3 && s.status !== "finished" && s.status !== "dropped")).sort((a, b) => (a.remain ?? 99) - (b.remain ?? 99)).slice(0, 6);
@@ -151,7 +157,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
 
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="space-y-4 xl:col-span-2">
-          {todayCard}
+          {todayCard(sessions)}
 
           <Card className="p-0">
             <div className="flex items-center justify-between border-b px-4 py-3">
