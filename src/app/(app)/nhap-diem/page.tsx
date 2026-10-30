@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AutoForm } from "@/components/auto-form";
+import { MobileCollapse } from "@/components/mobile-collapse";
 import { BarChart3, ClipboardCheck, Percent, Users } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireRole, teachingIds } from "@/lib/guard";
@@ -39,14 +40,46 @@ export default async function GradeEntry({ searchParams }: { searchParams: Promi
         const page = stats.slice(pg.skip, pg.skip + pg.take);
         return (
           <div className="space-y-3">
-            <AutoForm className="flex flex-wrap items-end gap-2">
+            <AutoForm className="flex flex-wrap items-center gap-2">
               <input type="hidden" name="tab" value="classes" />
-              <input name="q" defaultValue={sp.q} placeholder="Tìm lớp..." className={inputCls + " min-w-48 flex-1"} />
-              <select name="templateId" defaultValue={sp.templateId ?? ""} className={inputCls}><option value="">Tất cả bộ điểm</option>{templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
-              <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" name="all" value="1" defaultChecked={!!sp.all} /> Gồm lớp đã kết thúc</label>
+              <input name="q" defaultValue={sp.q} placeholder="Tìm lớp..." className={inputCls + " min-w-0 flex-1 md:min-w-48"} />
+              <MobileCollapse active={[sp.templateId, sp.all].filter(Boolean).length}>
+                <select name="templateId" defaultValue={sp.templateId ?? ""} className={inputCls}><option value="">Tất cả bộ điểm</option>{templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
+                <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border bg-white px-3 text-sm has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50"><input type="checkbox" name="all" value="1" defaultChecked={!!sp.all} /> Gồm lớp đã kết thúc</label>
+              </MobileCollapse>
             </AutoForm>
-            <p className="text-sm text-slate-500">Bấm vào một lớp để mở bảng nhập điểm cả lớp (nhập trực tiếp, tổng điểm tự tính).</p>
-            <Table head={["Lớp", "Bộ điểm", "Học viên", "Tiến độ nhập điểm", "Điểm TB (thang 10)", ""]}>
+            {/* Điện thoại: thẻ lớp gọn thay cho bảng */}
+            <div className="space-y-2 md:hidden">
+              {page.map((c) => {
+                const pct = c.expected ? Math.round((c.filled / c.expected) * 100) : 0;
+                const band = c.avgNorm != null ? bandOf(c.avgNorm) : null;
+                const href = c.templateId ? `/lop-hoc/${c.id}/diem` : `/lop-hoc/${c.id}?tab=settings`;
+                return (
+                  <Link key={c.id} href={href} className="block rounded-xl border bg-white p-3.5 shadow-sm transition-colors active:bg-slate-50">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0"><div className="font-semibold leading-snug">{c.name}</div><div className="text-xs text-slate-500">GV: {c.teacher ?? "-"}{c.finished ? " · Đã kết thúc" : ""} · {c.students} học viên</div></div>
+                      {c.template ? <span className="shrink-0 rounded bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">{c.template}</span> : <span className="shrink-0 text-xs text-red-600">Chưa có bộ điểm</span>}
+                    </div>
+                    {c.templateId && (
+                      <div className="mt-3 grid grid-cols-2 gap-4 border-t pt-3">
+                        <div className="min-w-0">
+                          <div className="flex justify-between text-xs"><span className="text-slate-500">Đã nhập</span><b>{pct}%</b></div>
+                          <div className="mt-0.5 text-sm"><b>{c.filled}</b><span className="text-slate-500">/{c.expected} ô</span></div>
+                          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct >= 100 ? "#22c55e" : "var(--color-orange-500)" }} /></div>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs text-slate-500">Điểm TB (thang 10)</div>
+                          {band ? <div className="mt-0.5 font-semibold" style={{ color: band.color }}>{fmt(c.avgNorm, 2)} <span className="text-xs font-normal text-slate-500">· {band.label}</span></div> : <div className="mt-0.5 text-slate-400">—</div>}
+                        </div>
+                      </div>
+                    )}
+                    <span className="mt-3 inline-flex h-9 w-full items-center justify-center rounded-md bg-orange-600 text-sm font-medium text-white">{c.templateId ? "Nhập điểm" : "Chọn bộ điểm"}</span>
+                  </Link>
+                );
+              })}
+              {!page.length && <p className="py-8 text-center text-sm text-slate-500">Không có lớp nào.</p>}
+            </div>
+            <div className="hidden md:block"><Table head={["Lớp", "Bộ điểm", "Học viên", "Tiến độ nhập điểm", "Điểm TB (thang 10)", ""]}>
               {page.map((c) => {
                 const pct = c.expected ? Math.round((c.filled / c.expected) * 100) : 0;
                 const band = c.avgNorm != null ? bandOf(c.avgNorm) : null;
@@ -70,7 +103,7 @@ export default async function GradeEntry({ searchParams }: { searchParams: Promi
                 );
               })}
               {!page.length && <tr><td colSpan={6} className="py-8 text-center text-slate-500">Không có lớp nào.</td></tr>}
-            </Table>
+            </Table></div>
             <Pagination total={total} page={pg.page} size={pg.size} path="/nhap-diem" params={{ tab: "classes", q: sp.q, templateId: sp.templateId, all: sp.all, size: sp.size }} />
           </div>
         );
@@ -91,17 +124,17 @@ export default async function GradeEntry({ searchParams }: { searchParams: Promi
         const one = sp.classId ? scope[0] : null;
 
         const Stat = ({ icon: I, label, value, tone = "bg-orange-100 text-orange-700" }: { icon: typeof Users; label: string; value: React.ReactNode; tone?: string }) => (
-          <Card className="flex items-center gap-3 p-4"><span className={`grid size-10 shrink-0 place-items-center rounded-lg ${tone}`}><I className="size-5" /></span><div className="min-w-0"><div className="truncate text-xs text-slate-500">{label}</div><div className="truncate text-xl font-bold">{value}</div></div></Card>
+          <Card className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4"><span className={`grid size-9 shrink-0 place-items-center rounded-lg sm:size-10 ${tone}`}><I className="size-4 sm:size-5" /></span><div className="min-w-0"><div className="truncate text-xs text-slate-500">{label}</div><div className="truncate text-xl font-bold">{value}</div></div></Card>
         );
         return (
           <div className="space-y-4">
-            <Card className="p-3">
-              <AutoForm className="flex flex-wrap items-end gap-3">
-                <input type="hidden" name="tab" value="stats" />
-                <Field label="Lớp"><select name="classId" defaultValue={sp.classId ?? ""} className={inputCls}><option value="">Tất cả lớp</option>{stats.filter((c) => c.templateId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
-                <Field label="Bộ điểm"><select name="templateId" defaultValue={sp.templateId ?? ""} className={inputCls}><option value="">Tất cả</option>{templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></Field>
-              </AutoForm>
-            </Card>
+            <AutoForm className="flex flex-wrap items-center gap-2">
+              <input type="hidden" name="tab" value="stats" />
+              <MobileCollapse block active={[sp.classId, sp.templateId].filter(Boolean).length}>
+                <Field label="Lớp"><select name="classId" defaultValue={sp.classId ?? ""} className={inputCls + " max-md:w-full"}><option value="">Tất cả lớp</option>{stats.filter((c) => c.templateId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
+                <Field label="Bộ điểm"><select name="templateId" defaultValue={sp.templateId ?? ""} className={inputCls + " max-md:w-full"}><option value="">Tất cả</option>{templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></Field>
+              </MobileCollapse>
+            </AutoForm>
 
             <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
               <Stat icon={ClipboardCheck} label="Lớp có bộ điểm" value={scope.length} />
