@@ -6,6 +6,7 @@ import { assertRole } from "@/lib/guard";
 import { wrap, str, int } from "@/lib/action";
 import { createUser, resetPassword } from "@/server/accounts";
 import { addMonths, getPlatformCfg, PLAN_ORDER, type PlanCode, type PlatformCfg } from "@/lib/plans";
+import { applyOrder } from "@/server/orders";
 import { getSettings, saveSettings } from "@/lib/settings";
 
 const RESERVED = new Set(["admin", "api", "www", "app", "platform", "login", "superadmin", "root", "static"]);
@@ -79,26 +80,11 @@ export const deleteTenant = wrap(async (fd) => {
   redirect("/platform");
 });
 
-/** Áp dụng một đơn đã thanh toán: đổi gói, cộng thời hạn (tính từ hạn hiện tại nếu còn hạn). */
-async function applyOrder(orderId: string) {
-  const o = await rootDb.tenantOrder.findUniqueOrThrow({ where: { id: orderId } });
-  if (o.status === "PAID") throw new Error("Đơn này đã được xác nhận trước đó");
-  const cfg = await getPlatformCfg();
-  const t = await rootDb.tenant.findUniqueOrThrow({ where: { id: o.tenantId } });
-  const plan = o.plan as PlanCode;
-  const start = t.expiresAt && t.expiresAt > new Date() && t.plan === plan ? t.expiresAt : new Date();
-  await rootDb.$transaction([
-    rootDb.tenant.update({ where: { id: t.id }, data: { plan, status: "ACTIVE", expiresAt: addMonths(start, o.months), maxStudents: cfg.plans[plan].maxStudents, maxBranches: cfg.plans[plan].maxBranches } }),
-    rootDb.tenantOrder.update({ where: { id: o.id }, data: { status: "PAID", paidAt: new Date() } }),
-  ]);
-  return { tenantId: t.id, name: t.name };
-}
-
 export const confirmOrder = wrap(async (fd) => {
   await assertRole("SUPERADMIN");
   const r = await applyOrder(str(fd, "id"));
   revalidatePath("/platform", "layout");
-  return `Đã xác nhận, ${r.name} đã được cập nhật gói và hạn dùng`;
+  return r.already ? "Đơn này đã được xác nhận trước đó" : `Đã xác nhận, ${r.name} đã được cập nhật gói và hạn dùng`;
 });
 
 export const cancelOrder = wrap(async (fd) => {

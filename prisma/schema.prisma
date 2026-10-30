@@ -627,6 +627,8 @@ model TenantOrder {
   createdBy String?
   createdAt DateTime @default(now())
   paidAt    DateTime?
+  checkoutUrl    String? // link thanh toán PayOS
+  payosOrderCode Int?    @unique
 
   @@index([tenantId])
 }

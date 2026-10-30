@@ -8,6 +8,7 @@ import { vietQrUrl } from "@/lib/vietqr";
 import { DURATIONS, daysLeft, fmtVnd, getPlatformCfg, PLAN_ORDER, priceFor, type PlanCode } from "@/lib/plans";
 import { ORDER_STATUS, PLAN_LABEL, tenantState } from "@/lib/tenants";
 import { PlanPicker } from "./plan-picker";
+import { PayWatcher } from "./pay-watcher";
 import { cancelMyOrder } from "./actions";
 
 export default async function PlanPage() {
@@ -53,24 +54,34 @@ export default async function PlanPage() {
       </div>
 
       {pending.map((o) => (
-        <Card key={o.id} className="grid gap-4 border-yellow-300 md:grid-cols-[auto_1fr]">
-          {cfg.bank.account ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={vietQrUrl({ ...cfg.bank, amount: o.amount, info: o.code })} alt="QR thanh toán" className="size-48 rounded-lg border bg-white object-contain" />
-          ) : <div className="grid size-48 place-items-center rounded-lg border text-center text-xs text-slate-500">Chưa cấu hình tài khoản nhận tiền</div>}
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center gap-2"><h2 className="text-base font-semibold">Đơn {o.code} · chờ thanh toán</h2></div>
-            <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
-              <div><span className="text-slate-500">Gói:</span> <b>{PLAN_LABEL[o.plan]} · {o.months} tháng</b></div>
-              <div><span className="text-slate-500">Số tiền:</span> <b className="text-orange-700">{fmtVnd(o.amount)}</b></div>
-              <div><span className="text-slate-500">Ngân hàng:</span> <b>{cfg.bank.bank}</b></div>
-              <div><span className="text-slate-500">Số tài khoản:</span> <b>{cfg.bank.account || "-"}</b></div>
-              <div><span className="text-slate-500">Chủ tài khoản:</span> <b>{cfg.bank.name || "-"}</b></div>
-              <div><span className="text-slate-500">Nội dung CK:</span> <b>{o.code}</b></div>
+        <Card key={o.id} className="space-y-4 border-yellow-300">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold">Đơn {o.code} · chờ thanh toán</h2>
+              <p className="text-sm text-slate-600">{PLAN_LABEL[o.plan]} · {o.months} tháng · <b className="text-orange-700">{fmtVnd(o.amount)}</b></p>
             </div>
-            <p className="text-slate-600">Sau khi chuyển khoản, đơn sẽ được xác nhận và gói được kích hoạt trong giờ làm việc.</p>
-            <ActionForm action={cancelMyOrder} submit="Huỷ đơn" compact ghost danger reset={false} confirmText="Huỷ đơn này?" className="inline-flex"><input type="hidden" name="id" value={o.id} /></ActionForm>
+            <div className="flex items-center gap-2">
+              {o.checkoutUrl && <a href={o.checkoutUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-10 items-center rounded-md bg-orange-600 px-5 text-sm font-semibold text-white hover:bg-orange-700">Thanh toán ngay</a>}
+              <ActionForm action={cancelMyOrder} submit="Huỷ đơn" compact ghost danger reset={false} confirmText="Huỷ đơn này?" className="inline-flex"><input type="hidden" name="id" value={o.id} /></ActionForm>
+            </div>
           </div>
+          {o.checkoutUrl && <PayWatcher />}
+          {cfg.bank.account && (
+            <details className="rounded-lg border bg-slate-50 p-3 text-sm">
+              <summary className="cursor-pointer font-medium">Hoặc chuyển khoản thủ công</summary>
+              <div className="mt-3 grid gap-4 md:grid-cols-[auto_1fr]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={vietQrUrl({ ...cfg.bank, amount: o.amount, info: o.code })} alt="QR thanh toán" className="size-44 rounded-lg border bg-white object-contain" />
+                <div className="grid content-start gap-x-6 gap-y-1 sm:grid-cols-2">
+                  <div><span className="text-slate-500">Ngân hàng:</span> <b>{cfg.bank.bank}</b></div>
+                  <div><span className="text-slate-500">Số tài khoản:</span> <b>{cfg.bank.account}</b></div>
+                  <div><span className="text-slate-500">Chủ tài khoản:</span> <b>{cfg.bank.name}</b></div>
+                  <div><span className="text-slate-500">Nội dung CK:</span> <b>{o.code}</b></div>
+                  <p className="text-slate-600 sm:col-span-2">Chuyển khoản tay sẽ được xác nhận thủ công trong giờ làm việc.</p>
+                </div>
+              </div>
+            </details>
+          )}
         </Card>
       ))}
 
