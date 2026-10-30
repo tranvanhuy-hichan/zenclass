@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import * as React from "react";
+import { unstable_rethrow } from "next/navigation";
 import { PrismaClient } from "@prisma/client";
 
 /**
@@ -7,10 +8,11 @@ import { PrismaClient } from "@prisma/client";
  *  - `db`     : role app_rw, chịu Row-Level Security. Mọi truy vấn tự giới hạn trong trung tâm hiện tại
  *               (lấy từ phiên đăng nhập, hoặc từ withTenant()). Không có trung tâm => không thấy dòng nào.
  *  - `rootDb` : role chủ bảng, bỏ qua RLS. CHỈ dùng cho đăng nhập, quản trị nền tảng và tác vụ nền.
+ *               Kết nối bằng ROOT_DATABASE_URL (nên là pooler, cổng 6543 + pgbouncer=true trên Vercel), mặc định DIRECT_URL.
  */
 const g = globalThis as unknown as { base?: PrismaClient; root?: PrismaClient };
 const base = g.base ?? new PrismaClient();
-export const rootDb = g.root ?? new PrismaClient({ datasourceUrl: process.env.DIRECT_URL });
+export const rootDb = g.root ?? new PrismaClient({ datasourceUrl: process.env.ROOT_DATABASE_URL ?? process.env.DIRECT_URL });
 if (process.env.NODE_ENV !== "production") { g.base = base; g.root = rootDb; }
 
 const als = new AsyncLocalStorage<string | null>();
@@ -25,8 +27,9 @@ const sessionTenant = cached(async (): Promise<string | null> => {
     const { authOptions } = await import("@/lib/auth");
     const s = await getServerSession(authOptions);
     return ((s?.user as { tenantId?: string | null } | undefined)?.tenantId) ?? null;
-  } catch {
-    return null; // ngoài ngữ cảnh request
+  } catch (e) {
+    unstable_rethrow(e); // giữ nguyên tín hiệu "trang động" của Next, nếu không trang bị dựng tĩnh lúc build
+    return null; // ngoài ngữ cảnh request (script, cron)
   }
 });
 

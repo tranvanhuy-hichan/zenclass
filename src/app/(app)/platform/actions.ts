@@ -108,15 +108,22 @@ export const grantMonths = wrap(async (fd) => {
   return `Đã cộng ${months} tháng`;
 });
 
+/** Lưu từng phần cấu hình theo tab (`section`): plans | discounts | bank. Phần không gửi lên được giữ nguyên. */
 export const saveConfig = wrap(async (fd) => {
   await assertRole("SUPERADMIN");
+  const section = str(fd, "section");
   const cur = await getPlatformCfg();
-  const plans = { ...cur.plans };
-  for (const k of PLAN_ORDER) {
-    plans[k] = { ...cur.plans[k], name: str(fd, `${k}.name`) || cur.plans[k].name, monthlyPrice: int(fd, `${k}.price`, cur.plans[k].monthlyPrice), maxStudents: int(fd, `${k}.students`, cur.plans[k].maxStudents), maxBranches: int(fd, `${k}.branches`, cur.plans[k].maxBranches), features: str(fd, `${k}.features`).split("\n").map((x) => x.trim()).filter(Boolean) };
-  }
-  const pct = (m: string) => Math.min(90, Math.max(0, int(fd, `d${m}`, 0)));
-  const v: PlatformCfg = { plans, discounts: { "1": pct("1"), "3": pct("3"), "6": pct("6"), "12": pct("12") }, bank: { bank: str(fd, "bank"), account: str(fd, "account"), name: str(fd, "accName") } };
+  const v: PlatformCfg = { plans: { ...cur.plans }, discounts: { ...cur.discounts }, bank: { ...cur.bank } };
+  if (section === "plans") {
+    for (const k of PLAN_ORDER) {
+      v.plans[k] = { ...cur.plans[k], name: str(fd, `${k}.name`) || cur.plans[k].name, monthlyPrice: int(fd, `${k}.price`, cur.plans[k].monthlyPrice), maxStudents: int(fd, `${k}.students`, cur.plans[k].maxStudents), maxBranches: int(fd, `${k}.branches`, cur.plans[k].maxBranches), features: str(fd, `${k}.features`).split("\n").map((x) => x.trim()).filter(Boolean) };
+    }
+  } else if (section === "discounts") {
+    const pct = (m: "1" | "3" | "6" | "12") => Math.min(90, Math.max(0, int(fd, `d${m}`, 0)));
+    v.discounts = { "1": pct("1"), "3": pct("3"), "6": pct("6"), "12": pct("12") };
+  } else if (section === "bank") {
+    v.bank = { bank: str(fd, "bank").toUpperCase(), account: str(fd, "account").replace(/\s/g, ""), name: str(fd, "accName").toUpperCase() };
+  } else throw new Error("Thiếu phần cần lưu");
   await rootDb.platformConfig.upsert({ where: { key: "main" }, update: { value: v }, create: { key: "main", value: v } });
   revalidatePath("/platform", "layout"); revalidatePath("/goi-dich-vu");
 });

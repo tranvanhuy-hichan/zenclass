@@ -9,6 +9,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: s.name, description: "Hệ thống quản lý trung tâm" };
 }
 
+// Mọi trang đều cần phiên đăng nhập / dữ liệu trung tâm: không dựng tĩnh lúc build (build không được chạm CSDL).
+export const dynamic = "force-dynamic";
+
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const { theme } = await getSettings();
   const mode = (await cookies()).get("mode")?.value;
