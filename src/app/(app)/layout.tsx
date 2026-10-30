@@ -38,6 +38,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!u?.isActive) redirect("/login");
   return (
     <Shell role={me.role} userName={me.name} name={st.name} logo={st.theme.logo} unread={unread} mustChange={!!u.mustChangePwd}>
+      {me.role === "ADMIN" && tenant.expiresAt && tenant.expiresAt.getTime() - Date.now() < 7 * 86400_000 && (
+        <Link href="/goi-dich-vu" className="mb-4 block rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-2.5 text-sm text-yellow-900">
+          Gói dịch vụ sắp hết hạn vào {tenant.expiresAt.toLocaleDateString("vi-VN")}. <b className="underline">Gia hạn ngay</b> để không bị gián đoạn.
+        </Link>
+      )}
       {children}
     </Shell>
   );

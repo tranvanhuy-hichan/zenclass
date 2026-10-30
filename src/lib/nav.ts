@@ -32,12 +32,15 @@ const TRAIN: NavItem[] = [
 ];
 
 export const NAV: Record<Role, NavGroup[]> = {
-  SUPERADMIN: [{ items: [{ href: "/platform", label: "Trung tâm", icon: Building2 }] }],
+  SUPERADMIN: [
+    { items: [{ href: "/platform/tong-quan", label: "Tổng quan", icon: BarChart3 }] },
+    { title: "Quản lý", items: [{ href: "/platform/trung-tam", label: "Trung tâm", icon: Building2 }, { href: "/platform/don-hang", label: "Đơn hàng", icon: Wallet }, { href: "/platform/cau-hinh", label: "Gói & thanh toán", icon: Settings }] },
+  ],
   ADMIN: [
     { items: [home] },
     { title: "Đào tạo", items: TRAIN },
     { title: "Tài chính", items: [{ href: "/tai-chinh", label: "Học phí & Chi phí", icon: Wallet }, { href: "/bao-cao", label: "Báo cáo", icon: BarChart3 }, { href: "/cong", label: "Chấm công / Lương", icon: Clock }] },
-    { title: "Hệ thống", items: [{ href: "/nhan-vien", label: "Nhân viên & Tài khoản", icon: UserCog }, docs, noti, { href: "/giao-dien", label: "Giao diện", icon: Palette }, { href: "/cai-dat", label: "Cài đặt", icon: Settings }] },
+    { title: "Hệ thống", items: [{ href: "/nhan-vien", label: "Nhân viên & Tài khoản", icon: UserCog }, docs, noti, { href: "/goi-dich-vu", label: "Gói dịch vụ", icon: Landmark }, { href: "/giao-dien", label: "Giao diện", icon: Palette }, { href: "/cai-dat", label: "Cài đặt", icon: Settings }] },
   ],
   STAFF: [
     { items: [home] },
@@ -53,7 +56,7 @@ export const NAV: Record<Role, NavGroup[]> = {
 export const ROLE_LABEL: Record<Role, string> = { SUPERADMIN: "Quản trị nền tảng", ADMIN: "Quản trị", STAFF: "Nhân viên", TEACHER: "Giáo viên", STUDENT: "Học viên", PARENT: "Phụ huynh" };
 
 const TITLES: Record<string, string> = {
-  "lich-hoc": "Lịch học", "lop-hoc": "Lớp học", "hoc-vien": "Học viên", "giao-vien": "Giáo viên", "tro-giang": "Trợ giảng", "giao-vu": "Giáo vụ", "phan-cong": "Phân công lịch dạy", "phong-hoc": "Phòng học", "bang-diem": "Bộ điểm", "nhap-diem": "Nhập điểm", "co-so": "Cơ sở", platform: "Quản trị nền tảng", "khoa-hoc": "Khoá học", "lich-cua-toi": "Lịch học", "diem-danh-cua-toi": "Điểm danh", "diem-cua-toi": "Bảng điểm", "hoc-phi-cua-toi": "Học phí",
+  "lich-hoc": "Lịch học", "lop-hoc": "Lớp học", "hoc-vien": "Học viên", "giao-vien": "Giáo viên", "tro-giang": "Trợ giảng", "giao-vu": "Giáo vụ", "phan-cong": "Phân công lịch dạy", "phong-hoc": "Phòng học", "bang-diem": "Bộ điểm", "nhap-diem": "Nhập điểm", "co-so": "Cơ sở", platform: "Quản trị nền tảng", "tong-quan": "Tổng quan", "trung-tam": "Trung tâm", "don-hang": "Đơn hàng", "cau-hinh": "Gói & thanh toán", "goi-dich-vu": "Gói dịch vụ", "khoa-hoc": "Khoá học", "lich-cua-toi": "Lịch học", "diem-danh-cua-toi": "Điểm danh", "diem-cua-toi": "Bảng điểm", "hoc-phi-cua-toi": "Học phí",
   "tai-chinh": "Tài chính", "bao-cao": "Báo cáo", cong: "Chấm công", "nhan-vien": "Nhân viên & Tài khoản", "tai-lieu": "Tài liệu", "thong-bao": "Thông báo",
   "giao-dien": "Giao diện", "cai-dat": "Cài đặt", "doi-mat-khau": "Đổi mật khẩu", "diem-danh": "Điểm danh", diem: "Bảng điểm", "in-lich": "In lịch", "lop-cua-toi": "Lớp của tôi", "hoa-don": "Học phí", them: "Thêm mới",
 };

@@ -613,3 +613,26 @@ model Tenant {
   note        String?
   createdAt   DateTime  @default(now())
 }
+
+/// Đơn đăng ký / gia hạn gói dịch vụ của một trung tâm.
+model TenantOrder {
+  tenantId  String   @default(dbgenerated("(current_setting('app.tenant_id'::text, true))"))
+  id        String   @id @default(cuid())
+  code      String   @unique
+  plan      String
+  months    Int
+  amount    Int
+  status    String   @default("PENDING") // PENDING | PAID | CANCELLED
+  note      String?
+  createdBy String?
+  createdAt DateTime @default(now())
+  paidAt    DateTime?
+
+  @@index([tenantId])
+}
+
+/// Cấu hình toàn nền tảng (gói dịch vụ, giảm giá theo kỳ hạn, tài khoản nhận tiền). Chỉ đọc/ghi bằng rootDb.
+model PlatformConfig {
+  key   String @id
+  value Json
+}

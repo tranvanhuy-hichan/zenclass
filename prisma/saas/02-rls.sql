@@ -9,8 +9,8 @@ BEGIN
     EXECUTE format($f$CREATE POLICY tenant_isolation ON %I USING ("tenantId" = NULLIF(current_setting('app.tenant_id', true), '')) WITH CHECK ("tenantId" = NULLIF(current_setting('app.tenant_id', true), ''))$f$, t);
   END LOOP;
 END $$;
-REVOKE ALL ON "Tenant" FROM app_rw;
+REVOKE ALL ON "Tenant", "PlatformConfig" FROM app_rw;
 GRANT USAGE ON SCHEMA public TO app_rw;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO app_rw;
-REVOKE ALL ON "Tenant" FROM app_rw;
+REVOKE ALL ON "Tenant", "PlatformConfig" FROM app_rw;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO app_rw;
