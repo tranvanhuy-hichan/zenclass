@@ -14,9 +14,9 @@ export function ViewToggle({ path, params, view }: { path: string; params?: Reco
     p.set("v", v);
     return `${path}?${p}`;
   };
-  const cls = (on: boolean) => `inline-flex h-9 items-center gap-1 px-3 ${on ? "bg-orange-600 text-white" : "hover:bg-slate-50"}`;
+  const cls = (on: boolean) => `inline-flex h-9 flex-1 items-center justify-center gap-1 px-3 md:flex-none ${on ? "bg-orange-600 text-white" : "hover:bg-slate-50"}`;
   return (
-    <div className="flex shrink-0 overflow-hidden rounded-md border bg-white text-sm">
+    <div className="flex w-full shrink-0 overflow-hidden rounded-md border bg-white text-sm md:w-auto">
       <Link href={href("table")} className={cls(view === "table")}><Rows3 className="size-4" /> Bảng</Link>
       <Link href={href("cards")} className={`${cls(view === "cards")} border-l`}><LayoutGrid className="size-4" /> Thẻ</Link>
     </div>

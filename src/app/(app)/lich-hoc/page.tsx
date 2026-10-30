@@ -147,9 +147,9 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
 
   return (
     <div className="space-y-4">
-      <Title right={<div className="flex items-center gap-2 text-sm">
+      <Title right={<div className="flex w-full items-center gap-2 text-sm sm:w-auto">
         <Link className="inline-flex size-9 items-center justify-center rounded-md border bg-white hover:bg-slate-50" href={q({ w: isoDate(step(-1)) })} aria-label="Trước"><ChevronLeft className="size-4" /></Link>
-        <span className="min-w-44 text-center font-medium">{label}</span>
+        <span className="min-w-0 flex-1 text-center font-medium sm:min-w-44 sm:flex-none">{label}</span>
         <Link className="inline-flex size-9 items-center justify-center rounded-md border bg-white hover:bg-slate-50" href={q({ w: isoDate(step(1)) })} aria-label="Sau"><ChevronRight className="size-4" /></Link>
         <Link className="inline-flex h-9 items-center rounded-md bg-orange-600 px-3 font-medium text-white hover:bg-orange-700" href={q({ w: isoDate(today) })}>Hôm nay</Link>
       </div>}>Lịch học{portal?.kid ? <span className="ml-2 text-sm font-normal text-slate-500">· {portal.kid.fullName} ({portal.kid.code})</span> : null}</Title>
