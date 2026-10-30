@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
     : { icon: [{ url: "/favicon.ico?v=1", type: "image/x-icon" }, { url: "/favicon.svg?v=1", type: "image/svg+xml" }, { url: "/icon-192.png?v=1", sizes: "192x192", type: "image/png" }, { url: "/icon-512.png?v=1", sizes: "512x512", type: "image/png" }], shortcut: "/favicon.ico?v=1", apple: [{ url: "/apple-touch-icon.png?v=1", sizes: "180x180" }] };
   // Chưa đăng nhập / quản trị nền tảng (không thuộc trung tâm nào): dùng tên hệ thống.
   const title = (await currentTenantId()) ? s.name : "ZenClass";
-  return { title, description: "ZenClass — hệ thống quản lý trung tâm dạy học", icons };
+  return { title, description: "ZenClass — nền tảng quản lý trung tâm đào tạo", icons };
 }
 
 // Mọi trang đều cần phiên đăng nhập / dữ liệu trung tâm: không dựng tĩnh lúc build (build không được chạm CSDL).
