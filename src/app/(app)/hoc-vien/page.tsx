@@ -34,21 +34,49 @@ export default async function Students({ searchParams }: { searchParams: Promise
   const shown = list.slice(pg.skip, pg.skip + pg.take);
   const params = { q, tab, sort, classId, size: sp.size, v: sp.v };
 
+  const StudentCard = ({ s }: { s: (typeof shown)[number] }) => {
+    const st = s.status as StudentStatus;
+    const classes = s.enrollments.filter((e) => e.status === "ACTIVE").map((e) => e.class.name);
+    const hue = [...s.id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 0);
+    return (
+      <Link href={`/hoc-vien/${s.id}`} className={`block rounded-xl border bg-white p-3 shadow-sm transition-colors hover:border-orange-400 active:bg-slate-50 ${st === "dropped" ? "opacity-60" : ""}`}>
+        <div className="flex items-center gap-3">
+          <span className="grid size-11 shrink-0 place-items-center rounded-full text-base font-bold" style={{ background: `hsl(${hue} 70% 90%)`, color: `hsl(${hue} 60% 25%)` }}>{s.fullName.split(" ").pop()?.[0]}</span>
+          <div className="min-w-0 flex-1">
+            <div className={`truncate font-semibold ${st === "dropped" ? "line-through" : ""}`}>{s.fullName}</div>
+            <div className="truncate text-xs text-slate-500">{s.code}{s.phone ? ` · ${s.phone}` : ""}</div>
+          </div>
+          <span className={`flex shrink-0 items-center gap-1.5 text-xs font-semibold ${TEXT[st]}`}><i className={`inline-block size-2 rounded-full ${DOT[st]}`} />{STATUS_LABEL[st]}</span>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-1">
+          {classes.length ? <>{classes.slice(0, 2).map((c) => <span key={c} className="rounded bg-slate-100 px-2 py-0.5 text-xs">{c}</span>)}{classes.length > 2 && <span className="rounded bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">+{classes.length - 2}</span>}</> : <span className="text-xs text-slate-500">{SUB(st, s.remain)}</span>}
+        </div>
+        {s.parent && <div className="mt-1.5 truncate text-xs text-slate-500">PH: {s.parent.fullName}{s.parent.phone ? ` · ${s.parent.phone}` : ""}</div>}
+      </Link>
+    );
+  };
+
   return (
     <div className="space-y-4">
-      <Title right={<><a href="/api/export/students" className="text-sm underline">Xuất Excel (CSV)</a><Link href="/hoc-vien/them" className="inline-flex h-9 items-center rounded-md bg-orange-600 px-4 text-sm font-medium text-white hover:bg-orange-700">+ Thêm học viên</Link></>}>Danh sách Học viên</Title>
+      <Title right={<><a href="/api/export/students" className="inline-flex h-9 items-center justify-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50">Xuất Excel (CSV)</a><Link href="/hoc-vien/them" className="inline-flex h-9 items-center rounded-md bg-orange-600 px-4 text-sm font-medium text-white hover:bg-orange-700">+ Thêm học viên</Link></>}>Danh sách Học viên</Title>
       <Tabs current={`/hoc-vien?tab=${tab}&q=${encodeURIComponent(q)}&sort=${sort}&classId=${classId}`} items={TABS.map(([k, l]) => [`/hoc-vien?tab=${k}&q=${encodeURIComponent(q)}&sort=${sort}&classId=${classId}`, `${l} (${counts[k] ?? 0})`] as [string, string])} />
       <AutoForm className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="tab" value={tab} /><input type="hidden" name="v" value={view} />
-        <input name="q" defaultValue={q} placeholder="Tìm theo tên, mã, SĐT..." className={inputCls + " min-w-48 flex-1 max-md:w-full max-md:basis-full"} />
-        <div className="min-w-0 max-md:flex-1"><ViewToggle path="/hoc-vien" params={{ q, tab, sort, classId, size: sp.size }} view={view} /></div>
+        <input name="q" defaultValue={q} placeholder="Tìm theo tên, mã, SĐT..." className={inputCls + " min-w-0 flex-1 md:min-w-48"} />
+        <div className="hidden md:block"><ViewToggle path="/hoc-vien" params={{ q, tab, sort, classId, size: sp.size }} view={view} /></div>
         <MobileCollapse active={[classId, sort !== "az" ? sort : ""].filter(Boolean).length}>
         <select name="classId" defaultValue={classId} className={inputCls + " max-w-56"}><option value="">Tất cả lớp</option>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
         <select name="sort" defaultValue={sort} className={inputCls}><option value="az">Tên A-Z</option><option value="za">Tên Z-A</option><option value="new">Mới nhất</option></select>
         </MobileCollapse>
       </AutoForm>
+      {view !== "cards" && (
+        <div className="space-y-2 md:hidden">
+          {shown.map((s) => <StudentCard key={s.id} s={s} />)}
+          {!shown.length && <p className="py-8 text-center text-sm text-slate-500">Không có học viên phù hợp.</p>}
+        </div>
+      )}
       {view === "table" ? (
-      <Table head={["Học viên", "Trạng thái", "Lớp đang học", "Phụ huynh"]}>
+        <div className="hidden md:block">      <Table head={["Học viên", "Trạng thái", "Lớp đang học", "Phụ huynh"]}>
         {shown.map((s) => {
           const st = s.status as StudentStatus;
           const classes = s.enrollments.filter((e) => e.status === "ACTIVE").map((e) => e.class.name);
@@ -83,35 +111,10 @@ export default async function Students({ searchParams }: { searchParams: Promise
           );
         })}
         {!shown.length && <tr><td colSpan={4} className="py-8 text-center text-slate-500">Không có học viên phù hợp.</td></tr>}
-      </Table>
+      </Table></div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-          {shown.map((s) => {
-            const st = s.status as StudentStatus;
-            const classes = s.enrollments.filter((e) => e.status === "ACTIVE").map((e) => e.class.name);
-            const hue = [...s.id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 0);
-            return (
-              <Link key={s.id} href={`/hoc-vien/${s.id}`}>
-                <div className={`flex h-full flex-col gap-3 rounded-lg border bg-white p-4 transition-colors hover:border-orange-400 ${st === "dropped" ? "opacity-60" : ""}`}>
-                  <div className="flex items-center gap-3">
-                    <span className="grid size-12 shrink-0 place-items-center rounded-full text-lg font-bold" style={{ background: `hsl(${hue} 70% 90%)`, color: `hsl(${hue} 60% 25%)` }}>{s.fullName.split(" ").pop()?.[0]}</span>
-                    <div className="min-w-0">
-                      <div className={`truncate text-base font-semibold ${st === "dropped" ? "line-through" : ""}`}>{s.fullName}</div>
-                      <div className="truncate text-xs text-slate-500">{s.code}{s.phone ? ` · ${s.phone}` : ""}</div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className={`flex items-center gap-2 text-sm font-semibold ${TEXT[st]}`}><i className={`inline-block size-2 rounded-full ${DOT[st]}`} />{STATUS_LABEL[st]}</div>
-                    <div className="mt-0.5 pl-4 text-xs text-slate-500">{SUB(st, s.remain)}</div>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {classes.length ? <>{classes.slice(0, 3).map((c) => <span key={c} className="rounded bg-slate-100 px-2 py-0.5 text-xs">{c}</span>)}{classes.length > 3 && <span className="rounded bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">+{classes.length - 3}</span>}</> : <span className="text-xs text-slate-400">Chưa có lớp</span>}
-                  </div>
-                  <div className="mt-auto border-t pt-2 text-xs text-slate-500">Phụ huynh: {s.parent ? `${s.parent.fullName}${s.parent.phone ? ` · ${s.parent.phone}` : ""}` : "—"}</div>
-                </div>
-              </Link>
-            );
-          })}
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-3 xl:grid-cols-3 2xl:grid-cols-4">
+          {shown.map((s) => <StudentCard key={s.id} s={s} />)}
           {!shown.length && <p className="text-sm text-slate-500">Không có học viên phù hợp.</p>}
         </div>
       )}
