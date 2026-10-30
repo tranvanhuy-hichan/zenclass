@@ -6,6 +6,7 @@ import { portalKids } from "@/server/portal";
 import { AutoForm } from "@/components/auto-form";
 import { ActionForm } from "@/components/action-form";
 import { DialogTrigger } from "@/components/dialog";
+import { MobileCollapse } from "@/components/mobile-collapse";
 import { Field, inputCls, Title } from "@/components/ui";
 import { WEEKDAYS, addDays, fmtDate, isoDate, mondayOf, parseDate, sessionEnded, todayUTC, roomLabel } from "@/lib/format";
 import { updateSession, cancelSession } from "../lop-hoc/actions";
@@ -20,7 +21,7 @@ async function load(where: object, kidId?: string) {
   });
 }
 
-export default async function Schedule({ searchParams }: { searchParams: Promise<{ w?: string; branch?: string; class?: string; teacher?: string; room?: string; view?: string; child?: string; scope?: string }> }) {
+export default async function Schedule({ searchParams }: { searchParams: Promise<{ w?: string; branch?: string; class?: string; teacher?: string; room?: string; view?: string; child?: string; scope?: string; d?: string }> }) {
   const me = await requireRole("ADMIN", "STAFF", "TEACHER", "STUDENT", "PARENT");
   const sp = await searchParams;
   const { w, child } = sp;
@@ -140,7 +141,7 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
       : { background: `hsl(${h} 85% ${s.status === "DONE" ? 90 : 94}%)`, borderLeft: `4px solid hsl(${h} 65% 42%)`, color: `hsl(${h} 60% 18%)` };
   };
 
-  const tab = (v: string, text: string, Icon: typeof Table2) => (
+  const tab = (v: string, text: React.ReactNode, Icon: typeof Table2) => (
     <Link href={q({ view: v })} className={`inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm ${view === v ? "border-orange-600 bg-orange-600 text-white" : "bg-white hover:bg-slate-50"}`}><Icon className="size-4" />{text}</Link>
   );
 
@@ -163,15 +164,17 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
             <Link href={q({ scope: "all" })} className={`inline-flex h-9 items-center border-l px-3 ${scope === "all" ? "bg-orange-600 text-white" : "hover:bg-slate-50"}`}>Tất cả</Link>
           </div>
         )}
-        {tab("matrix", "Theo lớp", Table2)}{tab("list", "Danh sách", LayoutList)}
+        {tab("matrix", <><span className="md:hidden">Theo ngày</span><span className="hidden md:inline">Theo lớp</span></>, Table2)}{tab("list", "Danh sách", LayoutList)}
         {canFilter && (
-          <AutoForm className="ml-auto flex flex-wrap items-center gap-2" resets={{ branch: ["class", "room", "teacher"] }}>
+          <AutoForm className="w-full md:ml-auto md:flex md:w-auto md:flex-wrap md:items-center md:gap-2" resets={{ branch: ["class", "room", "teacher"] }}>
             <input type="hidden" name="view" value={view} /><input type="hidden" name="w" value={isoDate(base)} />{hasMine && <input type="hidden" name="scope" value={scope} />}
+            <MobileCollapse active={[fBranch, fRoom, fClass, fTeacher].filter(Boolean).length}>
             <select name="branch" defaultValue={fBranch} className={inputCls} aria-label="Cơ sở"><option value="">Tất cả cơ sở</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
             <select name="room" defaultValue={fRoom} className={inputCls} aria-label="Phòng"><option value="">Tất cả phòng</option>{rooms.map((r) => <option key={r.id} value={r.id}>{fBranch ? r.name : roomLabel(r)}</option>)}</select>
             <select name="class" defaultValue={fClass} className={inputCls} aria-label="Lớp"><option value="">Tất cả lớp</option>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
             <select name="teacher" defaultValue={fTeacher} className={inputCls} aria-label="Giáo viên"><option value="">Tất cả giáo viên</option>{teachers.map((t) => <option key={t.id} value={t.id}>{t.fullName}</option>)}</select>
             {(fBranch || fRoom || fClass || fTeacher) && <Link href={`/lich-hoc?view=${view}&w=${isoDate(base)}${hasMine ? `&scope=${scope}` : ""}`} className="inline-flex h-9 items-center rounded-md px-2 text-sm text-slate-500 hover:text-orange-700">Xoá lọc</Link>}
+            </MobileCollapse>
           </AutoForm>
         )}
       </div>
@@ -183,8 +186,52 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
         const byKey = new Map<string, S[]>();
         for (const x of sessions) { const k = `${x.classId}|${x.date.getTime()}`; byKey.set(k, [...(byKey.get(k) ?? []), x]); }
         const info = new Map(sessions.map((x) => [x.classId, x]));
+        const selIso = sp.d && days.some((x) => isoDate(x) === sp.d) ? sp.d : days.some((x) => x.getTime() === today.getTime()) ? isoDate(today) : isoDate(days[0]);
+        const selDay = days.find((x) => isoDate(x) === selIso)!;
+        const dayList = sessions.filter((x) => isoDate(x.date) === selIso).sort((a, b) => a.startTime.localeCompare(b.startTime));
+        const SHORT = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
         return (
-          <div className="max-h-[calc(100vh-12rem)] overflow-auto rounded-lg border bg-white">
+          <>
+          {/* Điện thoại: chọn ngày rồi xem danh sách buổi của ngày đó (thay cho bảng lớp × thứ quá rộng) */}
+          <div className="space-y-3 md:hidden">
+            <div className="grid grid-cols-7 gap-1">
+              {days.map((d) => {
+                const n = sessions.filter((x) => x.date.getTime() === d.getTime()).length;
+                const on = isoDate(d) === selIso, isToday = d.getTime() === today.getTime();
+                return (
+                  <Link key={d.getTime()} href={q({ d: isoDate(d) })} scroll={false} className={`flex flex-col items-center rounded-lg border py-1.5 text-center ${on ? "border-orange-600 bg-orange-600 text-white" : isToday ? "border-orange-300 bg-orange-50" : "bg-white"}`}>
+                    <span className="text-[11px]">{SHORT[d.getUTCDay()]}</span>
+                    <span className="text-base font-bold leading-tight">{d.getUTCDate()}</span>
+                    <span className={`text-[10px] ${on ? "text-orange-100" : "text-slate-500"}`}>{n ? `${n} buổi` : "—"}</span>
+                  </Link>
+                );
+              })}
+            </div>
+            <div className="text-sm font-semibold">{WEEKDAYS[selDay.getUTCDay()]}, {fmtDate(selDay)}{selDay.getTime() === today.getTime() ? " · Hôm nay" : ""} <span className="font-normal text-slate-500">· {dayList.length} buổi</span></div>
+            <ul className="space-y-2">
+              {dayList.map((s) => {
+                const [stLabel, stTone] = isOverdue(s) ? ["Quá giờ", "bg-red-100 text-red-600"] : STATUS_BADGE[s.status];
+                const bar = s.status === "CANCELLED" ? "#94a3b8" : isOverdue(s) ? "#dc2626" : `hsl(${hue(s.classId)} 65% 42%)`;
+                return (
+                  <li key={s.id}>
+                    <DialogTrigger title={s.class.name} className="block w-full overflow-hidden rounded-lg border bg-white text-left" style={{ borderLeft: `4px solid ${bar}` }}
+                      trigger={<span className="flex items-start justify-between gap-2 p-3">
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold tabular-nums">{s.startTime} – {s.endTime}</span>
+                          <span className={`block font-medium ${s.status === "CANCELLED" ? "text-slate-400 line-through" : ""}`}>{s.class.name}</span>
+                          <span className="block text-xs text-slate-500">{s.teacher?.fullName ?? "Chưa có GV"} · {roomLabel(s.room) ?? "Chưa có phòng"}</span>
+                        </span>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${stTone}`}>{stLabel}</span>
+                      </span>}>
+                      <Detail s={s} />
+                    </DialogTrigger>
+                  </li>
+                );
+              })}
+              {!dayList.length && <li className="rounded-lg border bg-white py-8 text-center text-sm text-slate-500">Không có buổi học nào trong ngày này.</li>}
+            </ul>
+          </div>
+          <div className="hidden max-h-[calc(100vh-12rem)] overflow-auto rounded-lg border bg-white md:block">
             <table className="w-full min-w-[860px] border-collapse text-sm">
               <thead>
                 <tr className="bg-slate-50 text-xs">
@@ -234,6 +281,7 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
               </tbody>
             </table>
           </div>
+          </>
         );
       })()}
 
