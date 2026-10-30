@@ -55,7 +55,7 @@ export async function InvoiceDetail({ inv, staff, admin, back }: { inv: Inv; sta
               </ActionForm>
             </DialogButton>
           )}
-          <Link href={back.href} className="text-sm underline">← {back.label}</Link>
+          <Link href={back.href} className="hidden text-sm underline md:inline">← {back.label}</Link>
         </>
       }>
         Phiếu {inv.code} <span className={`ml-2 rounded-full px-2.5 py-0.5 align-middle text-xs font-medium ${tone}`}>{label}</span>

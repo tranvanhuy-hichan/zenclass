@@ -18,7 +18,7 @@ export default async function NewClass() {
   ]);
   return (
     <div className="space-y-4">
-      <Title right={<Link href="/lop-hoc" className="text-sm underline">← Danh sách lớp</Link>}>Thêm lớp học</Title>
+      <Title right={<Link href="/lop-hoc" className="hidden text-sm underline md:inline">← Danh sách lớp</Link>}>Thêm lớp học</Title>
       <NewClassForm
         teachers={teachers.map((t) => ({ id: t.id, label: t.specialty ? `${t.fullName} · ${t.specialty}` : t.fullName }))}
         assistants={assistants.map((t) => ({ id: t.id, label: t.fullName }))}

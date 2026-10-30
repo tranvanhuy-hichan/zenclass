@@ -19,10 +19,11 @@ export function PlanPicker({ current, plans, prices, hasPending }: { current: st
       <input type="hidden" name="plan" value={plan} /><input type="hidden" name="months" value={months} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-semibold">Đăng ký / nâng cấp / gia hạn</h2>
-        <div className="flex overflow-hidden rounded-md border text-sm">
+        <div className="flex w-full overflow-hidden rounded-md border text-sm sm:w-auto">
           {DUR.map((m) => (
-            <button type="button" key={m} onClick={() => setMonths(m)} className={`px-3 py-1.5 ${months === m ? "bg-orange-600 text-white" : "hover:bg-slate-50"} ${m > 1 ? "border-l" : ""}`}>
-              {m} tháng{(prices[plan]?.[m]?.pct ?? 0) > 0 && <span className={`ml-1 text-[11px] ${months === m ? "text-orange-100" : "text-green-700"}`}>-{prices[plan][m].pct}%</span>}
+            <button type="button" key={m} onClick={() => setMonths(m)} className={`flex flex-1 flex-col items-center whitespace-nowrap px-2.5 py-1 leading-tight sm:flex-none sm:px-3 ${months === m ? "bg-orange-600 text-white" : "hover:bg-slate-50"} ${m > 1 ? "border-l" : ""}`}>
+              <span>{m} tháng</span>
+              <span className={`text-[11px] ${(prices[plan]?.[m]?.pct ?? 0) > 0 ? (months === m ? "text-orange-100" : "text-green-700") : "invisible"}`}>-{prices[plan]?.[m]?.pct ?? 0}%</span>
             </button>
           ))}
         </div>

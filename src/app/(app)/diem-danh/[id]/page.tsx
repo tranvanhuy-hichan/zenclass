@@ -30,7 +30,7 @@ export default async function AttendancePage({ params }: { params: Promise<{ id:
 
   return (
     <div className="space-y-4">
-      <Title right={<Link href="/" className="text-sm underline">← Quay lại</Link>}>Điểm danh: {s.class.name}</Title>
+      <Title right={<Link href="/" className="hidden text-sm underline md:inline">← Quay lại</Link>}>Điểm danh: {s.class.name}</Title>
       <div className="text-sm text-gray-600">
         {WEEKDAYS[s.date.getUTCDay()]} {fmtDate(s.date)} · {s.startTime}-{s.endTime} · GV: {s.teacher?.fullName ?? "-"} · Phòng: {roomLabel(s.room) ?? "-"}
         {s.status === "CANCELLED" && <b className="text-red-600"> · BUỔI NGHỈ</b>}

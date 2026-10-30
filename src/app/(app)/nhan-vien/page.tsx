@@ -26,20 +26,41 @@ export default async function Staff({ searchParams }: { searchParams: Promise<{ 
           <Field label="Vai trò"><select name="role" className={inputCls + " w-full"}><option value="STAFF">Nhân viên</option><option value="ADMIN">Quản trị</option></select></Field>
         </ActionForm>
       </DialogButton>}>Nhân viên & Tài khoản</Title>
-      <AutoForm className="flex gap-2"><input type="hidden" name="v" value={view} /><input name="q" defaultValue={q} placeholder="Tìm tài khoản..." className={inputCls + " flex-1"} /><ViewToggle path="/nhan-vien" params={{ q, size: sp.size }} view={view} /></AutoForm>
+      <AutoForm className="flex gap-2"><input type="hidden" name="v" value={view} /><input name="q" defaultValue={q} placeholder="Tìm tài khoản..." className={inputCls + " min-w-0 flex-1"} /><div className="hidden md:block"><ViewToggle path="/nhan-vien" params={{ q, size: sp.size }} view={view} /></div></AutoForm>
+      {view !== "cards" && (
+        <div className="md:hidden">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {users.map((u) => (
+            <div key={u.id} className={`flex flex-col gap-3 rounded-lg border bg-white p-4 ${u.isActive ? "" : "opacity-60"}`}>
+              <div className="flex items-center gap-3">
+                <span className="grid size-11 shrink-0 place-items-center rounded-full bg-orange-100 text-base font-bold text-orange-700">{u.fullName.split(" ").pop()?.[0]}</span>
+                <div className="min-w-0"><div className="truncate font-semibold">{u.fullName}</div><div className="truncate text-xs text-slate-500">{u.username} · {u.role}</div></div>
+              </div>
+              <div className="flex items-center justify-between border-t pt-3 text-sm">
+                <span className={u.isActive ? "text-green-700" : "text-red-600"}>{u.isActive ? "Hoạt động" : "Đã khoá"}</span>
+                <div className="flex gap-2">
+                  <ActionForm action={adminResetPassword} submit="Reset MK" compact className="flex gap-2 items-center" reset={false}><input type="hidden" name="userId" value={u.id} /></ActionForm>
+                  <ActionForm action={toggleUser} submit={u.isActive ? "Khoá" : "Mở"} compact danger={u.isActive} className="flex gap-2 items-center"><input type="hidden" name="userId" value={u.id} /></ActionForm>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        </div>
+      )}
       {view === "table" ? (
-      <Table head={["Tên", "Đăng nhập", "Vai trò", "Trạng thái", ""]}>
+        <div className="hidden md:block"><Table head={["Tên", "Đăng nhập", "Vai trò", "Trạng thái", ""]}>
         {users.map((u) => (
           <tr key={u.id}>
             <td>{u.fullName}</td><td>{u.username}</td><td>{u.role}</td>
             <td>{u.isActive ? "Hoạt động" : "Đã khoá"}</td>
             <td className="flex gap-2">
-              <ActionForm action={adminResetPassword} submit="Reset MK" className="flex gap-2 items-center" reset={false}><input type="hidden" name="userId" value={u.id} /></ActionForm>
-              <ActionForm action={toggleUser} submit={u.isActive ? "Khoá" : "Mở"} danger={u.isActive} className="flex gap-2 items-center"><input type="hidden" name="userId" value={u.id} /></ActionForm>
+              <ActionForm action={adminResetPassword} submit="Reset MK" compact className="flex gap-2 items-center" reset={false}><input type="hidden" name="userId" value={u.id} /></ActionForm>
+              <ActionForm action={toggleUser} submit={u.isActive ? "Khoá" : "Mở"} compact danger={u.isActive} className="flex gap-2 items-center"><input type="hidden" name="userId" value={u.id} /></ActionForm>
             </td>
           </tr>
         ))}
-      </Table>
+      </Table></div>
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {users.map((u) => (
@@ -51,8 +72,8 @@ export default async function Staff({ searchParams }: { searchParams: Promise<{ 
               <div className="flex items-center justify-between border-t pt-3 text-sm">
                 <span className={u.isActive ? "text-green-700" : "text-red-600"}>{u.isActive ? "Hoạt động" : "Đã khoá"}</span>
                 <div className="flex gap-2">
-                  <ActionForm action={adminResetPassword} submit="Reset MK" className="flex gap-2 items-center" reset={false}><input type="hidden" name="userId" value={u.id} /></ActionForm>
-                  <ActionForm action={toggleUser} submit={u.isActive ? "Khoá" : "Mở"} danger={u.isActive} className="flex gap-2 items-center"><input type="hidden" name="userId" value={u.id} /></ActionForm>
+                  <ActionForm action={adminResetPassword} submit="Reset MK" compact className="flex gap-2 items-center" reset={false}><input type="hidden" name="userId" value={u.id} /></ActionForm>
+                  <ActionForm action={toggleUser} submit={u.isActive ? "Khoá" : "Mở"} compact danger={u.isActive} className="flex gap-2 items-center"><input type="hidden" name="userId" value={u.id} /></ActionForm>
                 </div>
               </div>
             </div>

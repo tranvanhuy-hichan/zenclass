@@ -19,7 +19,7 @@ export default async function GradeTemplateDetail({ params }: { params: Promise<
   const classes = await db.class.findMany({ where: { finished: false }, orderBy: { name: "asc" }, select: { id: true, name: true, gradeTemplateId: true } });
   return (
     <div className="space-y-4">
-      <Title right={<Link href="/bang-diem" className="text-sm underline">← Danh sách bộ điểm</Link>}>{t.name}</Title>
+      <Title right={<Link href="/bang-diem" className="hidden text-sm underline md:inline">← Danh sách bộ điểm</Link>}>{t.name}</Title>
       <Card className="p-0">
             <div className="divide-y">
               <section className="space-y-3 p-5">

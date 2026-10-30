@@ -35,7 +35,7 @@ export default async function CourseDetail({ params, searchParams }: { params: P
           <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">{c.name}</h1>{c.code && <span className="rounded bg-slate-100 px-2 py-0.5 text-xs">{c.code}</span>}{!c.active && <span className="rounded bg-slate-200 px-2 py-0.5 text-xs">Ngưng</span>}</div>
           <div className="text-sm text-slate-600">{c.subject ?? "Chưa có môn"}{c.level ? ` · ${c.level}` : ""}{c.description ? ` · ${c.description}` : ""}</div>
         </div>
-        <Link href="/khoa-hoc" className="inline-flex h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50">← Danh sách</Link>
+        <Link href="/khoa-hoc" className="hidden h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50 md:inline-flex">← Danh sách</Link>
       </Card>
       <Tabs current={`?tab=${tab}`} items={TABS.map(([k, l]) => [`?tab=${k}`, l] as [string, string])} />
 

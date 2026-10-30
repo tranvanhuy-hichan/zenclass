@@ -38,7 +38,7 @@ export default async function TenantDetail({ params }: { params: Promise<{ id: s
           <div className="flex items-center gap-2"><h1 className="text-xl font-semibold">{t.name}</h1><span className={`rounded-full px-2 py-0.5 text-xs font-medium ${st.cls}`}>{st.label}</span></div>
           <div className="text-sm text-slate-600">Mã đăng nhập: <code className="rounded bg-slate-100 px-1.5">{t.slug}</code> · Gói {PLAN_LABEL[t.plan]} · Tạo {fmtDate(t.createdAt)}{lastLogin ? ` · Hoạt động gần nhất ${fmtDate(lastLogin.at)}` : ""}</div>
         </div>
-        <Link href="/platform/trung-tam" className="inline-flex h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50">← Danh sách</Link>
+        <Link href="/platform/trung-tam" className="hidden h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50 md:inline-flex">← Danh sách</Link>
       </Card>
 
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">

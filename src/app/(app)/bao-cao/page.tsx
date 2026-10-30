@@ -4,7 +4,7 @@ import { Card, Title } from "@/components/ui";
 import { fmtMoney } from "@/lib/format";
 
 function Bar({ label, v, max, color = "bg-orange-500" }: { label: string; v: number; max: number; color?: string }) {
-  return <div className="flex items-center gap-2 text-xs"><span className="w-16">{label}</span><div className="flex-1 bg-orange-50 rounded h-4"><div className={`${color} h-4 rounded`} style={{ width: `${max ? (v / max) * 100 : 0}%` }} /></div><span className="w-24 text-right">{fmtMoney(v)}</span></div>;
+  return <div className="flex items-center gap-2 text-xs"><span className="w-[4.5rem] shrink-0 whitespace-nowrap sm:w-20">{label}</span><div className="flex-1 bg-orange-50 rounded h-4"><div className={`${color} h-4 rounded`} style={{ width: `${max ? (v / max) * 100 : 0}%` }} /></div><span className="w-24 text-right">{fmtMoney(v)}</span></div>;
 }
 
 export default async function Reports() {
@@ -40,10 +40,10 @@ export default async function Reports() {
         <h2 className="font-semibold">Thu / Chi 6 tháng gần nhất</h2>
         {data.map((d) => <div key={d.label} className="space-y-0.5"><Bar label={`${d.label} thu`} v={d.income} max={max} color="bg-green-500" /><Bar label="chi" v={d.expense} max={max} color="bg-red-400" /><div className="text-xs text-gray-500 pl-16">Lợi nhuận: <b>{fmtMoney(d.income - d.expense)}</b> · HV mới: {d.newStudents}</div></div>)}
       </Card>
-      <div className="grid md:grid-cols-3 gap-3">
-        <Card><div className="text-xs text-gray-500">Tỉ lệ chuyên cần</div><div className="text-3xl font-bold">{total ? Math.round((present / total) * 100) : 0}%</div><div className="text-xs text-gray-500">{present}/{total} lượt</div></Card>
-        <Card><div className="text-xs text-gray-500">Công nợ hiện tại</div><div className="text-3xl font-bold text-red-600">{fmtMoney((debt._sum.total ?? 0) - (debt._sum.paid ?? 0))}</div></Card>
-        <Card><div className="text-xs text-gray-500">Vắng có phép / không phép</div><div className="text-3xl font-bold">{att.find((a) => a.status === "ABSENT_EXCUSED")?._count ?? 0} / {att.find((a) => a.status === "ABSENT")?._count ?? 0}</div></Card>
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3">
+        <Card><div className="text-xs text-gray-500">Tỉ lệ chuyên cần</div><div className="text-2xl font-bold sm:text-3xl">{total ? Math.round((present / total) * 100) : 0}%</div><div className="text-xs text-gray-500">{present}/{total} lượt</div></Card>
+        <Card className="order-last col-span-2 md:order-none md:col-span-1"><div className="text-xs text-gray-500">Công nợ hiện tại</div><div className="text-2xl font-bold text-red-600 sm:text-3xl">{fmtMoney((debt._sum.total ?? 0) - (debt._sum.paid ?? 0))}</div></Card>
+        <Card><div className="text-xs text-gray-500">Vắng có phép / không phép</div><div className="text-2xl font-bold sm:text-3xl">{att.find((a) => a.status === "ABSENT_EXCUSED")?._count ?? 0} / {att.find((a) => a.status === "ABSENT")?._count ?? 0}</div></Card>
       </div>
       <Card className="space-y-1">
         <h2 className="font-semibold">Tỉ lệ lấp đầy lớp</h2>

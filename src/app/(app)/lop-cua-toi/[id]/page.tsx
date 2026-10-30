@@ -44,7 +44,7 @@ export default async function MyClass({ params, searchParams }: { params: Promis
         </div>
         <div className="flex gap-2">
           {c.gradeTemplate && <Link href={`/lop-hoc/${c.id}/diem`} className="inline-flex h-9 items-center gap-1.5 rounded-md bg-orange-600 px-4 text-sm font-medium text-white hover:bg-orange-700"><PenLine className="size-4" />Nhập điểm</Link>}
-          <Link href="/lop-cua-toi" className="inline-flex h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50">← Lớp của tôi</Link>
+          <Link href="/lop-cua-toi" className="hidden h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50 md:inline-flex">← Lớp của tôi</Link>
         </div>
       </Card>
       <Tabs current={`?tab=${tab}`} items={TABS.map(([k, l]) => [`?tab=${k}`, k === "students" ? `${l} (${c.enrollments.length})` : l] as [string, string])} />

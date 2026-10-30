@@ -81,7 +81,7 @@ export async function PeopleNew({ kind }: { kind: Kind }) {
   const A = actionsOf(kind);
   return (
     <div className="space-y-4">
-      <Title right={<Link href={K.base} className="text-sm underline">← Danh sách {K.label.toLowerCase()}</Link>}>Thêm {K.label.toLowerCase()}</Title>
+      <Title right={<Link href={K.base} className="hidden text-sm underline md:inline">← Danh sách {K.label.toLowerCase()}</Link>}>Thêm {K.label.toLowerCase()}</Title>
       <ActionForm action={A.create} submit={`Lưu ${K.label.toLowerCase()}`} className="flex w-full flex-col gap-4 [&>button]:self-start"><StaffFields kind={kind} create showPay={me.role === "ADMIN"} /></ActionForm>
     </div>
   );

@@ -44,7 +44,7 @@ export function ThemeEditor({ initial, name }: { initial: Theme; name: string })
         </div>
       </div>
 
-      <div className="bg-white border rounded-xl p-4 grid md:grid-cols-3 gap-4">
+      <div className="bg-white border rounded-xl p-4 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
         <Color k="primary" label="Màu chủ đạo (nút, tiêu đề, điểm nhấn)" />
         <Color k="background" label="Màu nền trang" />
         <Color k="surface" label="Màu nền thẻ / bảng" />

@@ -41,7 +41,7 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
   return (
     <div className="space-y-4">
       <Title right={<>
-        <a href="/api/export/invoices" className="text-sm underline">Xuất CSV</a>
+        <a href="/api/export/invoices" className="inline-flex h-9 items-center justify-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50">Xuất CSV</a>
         {tab !== "expense" ? <DialogButton wide label="+ Tạo phiếu thu" title="Tạo phiếu báo học phí"><ActionForm action={createInvoice} submit="Tạo phiếu" className="flex flex-col gap-3 [&>button]:self-start">
               <Field label="Học viên"><select name="studentId" className={inputCls} required><option value="">-- chọn --</option>{students.map((s) => <option key={s.id} value={s.id}>{s.fullName} ({s.code})</option>)}</select></Field>
               {[0, 1, 2].map((i) => (

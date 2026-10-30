@@ -76,7 +76,7 @@ export default async function Settings({ searchParams }: { searchParams: Promise
         <Card>
           <div className="mb-2 flex items-center justify-between"><h2 className="font-semibold">Ngày nghỉ lễ</h2>
             <DialogButton label="+ Thêm ngày lễ" title="Thêm ngày nghỉ lễ"><ActionForm action={addHoliday} submit="Thêm" className="flex flex-col gap-3 [&>button]:self-start"><Field label="Ngày"><input type="date" name="date" className={inputCls + " w-full"} /></Field><Field label="Tên"><input name="name" className={inputCls + " w-full"} /></Field></ActionForm></DialogButton></div>
-          <div className="mt-2 text-sm space-y-1">{holidays.map((h) => <div key={h.id} className="flex gap-2 items-center">{fmtDate(h.date)} · {h.name}<ActionForm action={deleteHoliday} submit="×" danger className="inline"><input type="hidden" name="id" value={h.id} /></ActionForm></div>)}</div>
+          <div className="mt-2 text-sm space-y-1">{holidays.map((h) => <div key={h.id} className="flex gap-2 items-center">{fmtDate(h.date)} · {h.name}<ActionForm action={deleteHoliday} submit="×" compact danger className="inline"><input type="hidden" name="id" value={h.id} /></ActionForm></div>)}</div>
         </Card>
       )}
       {tab === "logs" && (

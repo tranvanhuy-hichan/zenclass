@@ -34,7 +34,7 @@ export default async function Materials({ searchParams }: { searchParams: Promis
           <tr key={m.id}>
             <td><a href={m.url} target="_blank" rel="noopener noreferrer" className="font-medium text-orange-700 hover:underline">{m.title}</a></td>
             <td>{m.classId ? names.get(m.classId) : "Tất cả lớp"}</td><td>{fmtDate(m.createdAt)}</td>
-            <td>{canEdit && <ActionForm action={deleteMaterial} submit="Xoá" danger confirmText="Xoá tài liệu?" className=""><input type="hidden" name="id" value={m.id} /></ActionForm>}</td>
+            <td>{canEdit && <ActionForm action={deleteMaterial} submit="Xoá" compact danger confirmText="Xoá tài liệu?" className=""><input type="hidden" name="id" value={m.id} /></ActionForm>}</td>
           </tr>
         ))}
         {!list.length && <tr><td colSpan={4} className="py-8 text-center text-slate-500">Chưa có tài liệu.</td></tr>}

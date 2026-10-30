@@ -52,8 +52,8 @@ export default async function RoomDetail({ params, searchParams }: { params: Pro
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600"><span className="font-medium text-orange-700">{room.branch?.name ?? "Chưa gán cơ sở"}</span><span className="flex items-center gap-1"><Users className="size-4" /> Sức chứa {room.capacity} chỗ</span></div>
         </div>
-        <Link href={`/lich-hoc?room=${id}`} className="inline-flex h-9 items-center rounded-md bg-orange-600 px-4 text-sm font-medium text-white hover:bg-orange-700">Xem lịch phòng</Link>
-        <Link href="/phong-hoc" className="inline-flex h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50">← Danh sách</Link>
+        <Link href={`/lich-hoc?room=${id}`} className="inline-flex h-9 w-full items-center justify-center rounded-md bg-orange-600 px-4 text-sm font-medium text-white hover:bg-orange-700 md:w-auto">Xem lịch phòng</Link>
+        <Link href="/phong-hoc" className="hidden h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50 md:inline-flex">← Danh sách</Link>
       </Card>
 
       <Tabs current={`?tab=${tab}`} items={TABS.map(([k, l]) => [`?tab=${k}`, l] as [string, string])} />

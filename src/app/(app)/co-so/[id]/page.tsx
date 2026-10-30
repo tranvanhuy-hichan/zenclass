@@ -38,7 +38,7 @@ export default async function BranchDetail({ params, searchParams }: { params: P
             {b.phone && <span className="flex items-center gap-1.5"><Phone className="size-4 text-slate-400" />{b.phone}</span>}
           </div>
         </div>
-        <Link href="/co-so" className="inline-flex h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50">← Danh sách</Link>
+        <Link href="/co-so" className="hidden h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50 md:inline-flex">← Danh sách</Link>
       </Card>
       <Tabs current={`?tab=${tab}`} items={TABS.map(([k, l]) => [`?tab=${k}`, l] as [string, string])} />
 

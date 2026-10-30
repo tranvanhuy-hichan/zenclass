@@ -34,7 +34,7 @@ export default async function ClassGrades({ params }: { params: Promise<{ id: st
 
   return (
     <div className="space-y-3">
-      <Title right={<Link href={back} className="text-sm underline">← Quay lại</Link>}>Bảng điểm: {c.name}</Title>
+      <Title right={<Link href={back} className="hidden text-sm underline md:inline">← Quay lại</Link>}>Bảng điểm: {c.name}</Title>
       <p className="text-sm text-gray-600">
         Bộ điểm <b>{t.name}</b> · Tổng điểm tính theo: <code>{t.formula.trim() || "trung bình theo trọng số"}</code> (thang {t.scale})
       </p>

@@ -9,7 +9,7 @@ export default async function NewStudent() {
   await requireRole(...STAFF_ROLES);
   return (
     <div className=" space-y-4">
-      <Title right={<Link href="/hoc-vien" className="text-sm underline">← Danh sách học viên</Link>}>Thêm học viên</Title>
+      <Title right={<Link href="/hoc-vien" className="hidden text-sm underline md:inline">← Danh sách học viên</Link>}>Thêm học viên</Title>
       <ActionForm action={createStudent} submit="Lưu học viên & tạo tài khoản" className="space-y-4 w-full"><StudentFields /></ActionForm>
       <Card>
         <h2 className="mb-2 font-semibold">Hoặc nhập nhiều học viên cùng lúc</h2>
