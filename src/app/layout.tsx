@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import "./globals.css";
 import { getSettings } from "@/lib/settings";
@@ -16,6 +16,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const title = (await currentTenantId()) ? s.name : "ZenClass";
   return { title, description: "ZenClass — nền tảng quản lý trung tâm đào tạo", icons };
 }
+
+// Điện thoại: khoá thu/phóng màn hình bằng hai ngón (giao diện đã đặt cỡ chữ ô nhập 16px nên iOS cũng không tự phóng khi bấm vào ô).
+export const viewport: Viewport = { width: "device-width", initialScale: 1, maximumScale: 1, userScalable: false };
 
 // Mọi trang đều cần phiên đăng nhập / dữ liệu trung tâm: không dựng tĩnh lúc build (build không được chạm CSDL).
 export const dynamic = "force-dynamic";

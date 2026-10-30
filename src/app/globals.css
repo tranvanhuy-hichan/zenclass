@@ -95,3 +95,6 @@ button:disabled { cursor: not-allowed; }
 
 /* Hàng bảng bấm được để mở chi tiết */
 tr[data-clickable] { cursor: pointer; }
+
+/* Chặn phóng to bằng chạm đúp trên điện thoại (cuộn và bấm vẫn bình thường). */
+html { touch-action: manipulation; }
