@@ -3,9 +3,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "next-auth/react";
-import { ArrowLeft, Bell, ChevronRight, KeyRound, LogOut, Menu, X } from "lucide-react";
+import { ArrowLeft, Bell, ChevronDown, ChevronRight, KeyRound, LogOut, Menu, X } from "lucide-react";
 import clsx from "clsx";
-import { NAV, ROLE_LABEL, titleOf, type NavGroup } from "@/lib/nav";
+import { NAV, ROLE_LABEL, titleOf, type NavGroup, type NavItem } from "@/lib/nav";
 import type { Role } from "@/lib/guard";
 import { ModeToggle } from "@/components/layout/mode-toggle";
 
@@ -21,6 +21,34 @@ function Brand({ name, logo }: { name: string; logo: string }) {
   );
 }
 
+function Group({ it, path, onNavigate, compact }: { it: NavItem; path: string; onNavigate?: () => void; compact?: boolean }) {
+  const kids = it.children!;
+  const hasActive = kids.some((k) => isActive(path, k.href));
+  const [open, setOpen] = useState(hasActive);
+  useEffect(() => { if (hasActive) setOpen(true); }, [hasActive]);
+  return (
+    <div>
+      <button type="button" onClick={() => setOpen((o) => !o)} title={it.label} aria-expanded={open} data-active={hasActive && !open}
+        className="nav-item relative flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors">
+        <it.icon className="size-[18px] shrink-0" />
+        <span className={clsx("flex-1 truncate text-left", compact && "hidden lg:inline")}>{it.label}</span>
+        <ChevronDown className={clsx("size-4 shrink-0 transition-transform", open && "rotate-180", compact && "hidden lg:block")} />
+      </button>
+      {open && (
+        <div className={clsx("mt-0.5 space-y-0.5", "lg:ml-5 lg:border-l sb-line lg:pl-2")}>
+          {kids.map((k) => (
+            <Link key={k.href} href={k.href} onClick={onNavigate} title={k.label} data-active={isActive(path, k.href)}
+              className="nav-item relative flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors">
+              <k.icon className="size-4 shrink-0" />
+              <span className={clsx("flex-1 truncate", compact && "hidden lg:inline")}>{k.label}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Links({ groups, path, badges, onNavigate, compact }: { groups: NavGroup[]; path: string; badges: Record<string, number>; onNavigate?: () => void; compact?: boolean }) {
   return (
     <>
@@ -28,7 +56,9 @@ function Links({ groups, path, badges, onNavigate, compact }: { groups: NavGroup
         <div key={i} className="mb-2">
           {g.title && <div className={clsx("px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider sb-muted", compact && "hidden lg:block")}>{g.title}</div>}
           <div className="space-y-0.5">
-            {g.items.map((it) => (
+            {g.items.map((it) => it.children ? (
+              <Group key={it.href} it={it} path={path} onNavigate={onNavigate} compact={compact} />
+            ) : (
               <Link key={it.href} href={it.href} onClick={onNavigate} title={it.label} data-active={isActive(path, it.href)}
                 className="nav-item relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors">
                 <it.icon className="size-[18px] shrink-0" />
@@ -60,7 +90,7 @@ export function Shell({ role, userName, name, logo, unread, mustChange, children
 
   const segs = path.split("/").filter(Boolean);
   const crumbs = segs.map((s, i) => ({ href: "/" + segs.slice(0, i + 1).join("/"), label: titleOf(s) ?? (i > 0 ? "Chi tiết" : "") })).filter((c) => c.label);
-  const flat = groups.flatMap((g) => g.items);
+  const flat = groups.flatMap((g) => g.items).filter((i) => !i.children);
   const mobile = flat.slice(0, 4);
 
   return (

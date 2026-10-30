@@ -144,21 +144,41 @@ model Teacher {
   sessions Session[]
 }
 
-model Room {
-  id       String    @id @default(cuid())
-  name     String    @unique
-  capacity Int       @default(20)
-  classes  Class[]
-  sessions Session[]
+model Branch {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  address   String?
+  phone     String?
+  note      String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  rooms     Room[]
 }
 
+model Room {
+  id       String    @id @default(cuid())
+  name     String
+  capacity Int       @default(20)
+  branchId String?
+  branch   Branch?   @relation(fields: [branchId], references: [id])
+  classes  Class[]
+  sessions Session[]
+
+  @@unique([branchId, name])
+}
+
+/// Khoá học: nhóm các lớp cùng chương trình. Học bù và chuyển lớp chỉ được trong cùng một khoá.
 model Course {
-  id            String  @id @default(cuid())
-  name          String
+  id            String   @id @default(cuid())
+  name          String   @unique
+  code          String?
   subject       String?
   level         String?
+  description   String?
   totalSessions Int
   tuitionFee    Int
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
   classes       Class[]
 }
 

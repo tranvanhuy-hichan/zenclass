@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AutoForm } from "@/components/auto-form";
 import { CalendarClock, Info, Repeat } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireRole, STAFF_ROLES } from "@/lib/guard";
@@ -7,7 +8,7 @@ import { DialogButton } from "@/components/dialog";
 import { Card, Field, inputCls, Tabs, Title } from "@/components/ui";
 import { Pagination } from "@/components/pagination";
 import { getPaging } from "@/lib/paging";
-import { WEEKDAYS, addDays, fmtDate, fmtMoney, isoDate, overlaps, parseDate, todayUTC } from "@/lib/format";
+import { WEEKDAYS, addDays, fmtDate, fmtMoney, isoDate, overlaps, parseDate, todayUTC, roomLabel } from "@/lib/format";
 import { assignRange, assignSubstitute, revertSubstitute } from "./actions";
 
 const V = "flex flex-col gap-3 [&>button]:self-start";
@@ -34,7 +35,7 @@ export default async function Assignment({ searchParams }: { searchParams: Promi
     : { status: "PLANNED" as const, date: { gte: from, lte: to }, ...(sp.classId ? { classId: sp.classId } : {}), ...(sp.teacherId ? { teacherId: sp.teacherId } : {}) };
   const [total, rows, subCount] = await Promise.all([
     db.session.count({ where }),
-    db.session.findMany({ where, orderBy: tab === "history" ? [{ date: "desc" }, { startTime: "asc" }] : [{ date: "asc" }, { startTime: "asc" }], skip: pg.skip, take: pg.take, include: { class: true, room: true, teacher: true } }),
+    db.session.findMany({ where, orderBy: tab === "history" ? [{ date: "desc" }, { startTime: "asc" }] : [{ date: "asc" }, { startTime: "asc" }], skip: pg.skip, take: pg.take, include: { class: true, room: { include: { branch: true } }, teacher: true } }),
     db.session.count({ where: { originalTeacherId: { not: null }, status: "PLANNED", date: { gte: today } } }),
   ]);
 
@@ -94,7 +95,7 @@ export default async function Assignment({ searchParams }: { searchParams: Promi
       </div>
 
       <Card className="p-3">
-        <form className="flex flex-wrap items-end gap-3">
+        <AutoForm className="flex flex-wrap items-end gap-3">
           <input type="hidden" name="tab" value={tab} />
           {tab === "upcoming" && (
             <>
@@ -107,8 +108,7 @@ export default async function Assignment({ searchParams }: { searchParams: Promi
           )}
           <Field label="Lớp"><select name="classId" defaultValue={sp.classId ?? ""} className={inputCls}><option value="">Tất cả lớp</option>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
           <Field label="Giáo viên đang dạy"><select name="teacherId" defaultValue={sp.teacherId ?? ""} className={inputCls}><option value="">Tất cả</option>{teachers.map((t) => <option key={t.id} value={t.id}>{t.fullName}</option>)}</select></Field>
-          <button className="h-9 rounded-md bg-orange-600 px-4 text-sm font-medium text-white hover:bg-orange-700">Lọc</button>
-        </form>
+        </AutoForm>
       </Card>
 
       <div className="space-y-3">
@@ -129,7 +129,7 @@ export default async function Assignment({ searchParams }: { searchParams: Promi
                       <div className="text-sm font-semibold tabular-nums">{r.startTime} – {r.endTime}</div>
                       <div className="min-w-0">
                         <div className="truncate font-medium">{r.class.name}</div>
-                        <div className="text-xs text-slate-500">Phòng {r.room?.name ?? "-"}</div>
+                        <div className="text-xs text-slate-500">Phòng {roomLabel(r.room) ?? "-"}</div>
                       </div>
                       <div className="flex min-w-0 items-center gap-2">
                         <span className={`grid size-8 shrink-0 place-items-center rounded-full text-xs font-bold ${orig ? "bg-sky-100 text-sky-700" : "bg-orange-100 text-orange-700"}`}>{initial(r.teacher?.fullName)}</span>

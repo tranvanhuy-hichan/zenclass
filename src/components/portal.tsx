@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AutoForm } from "@/components/auto-form";
 import { notFound } from "next/navigation";
 import { AlertCircle, Award, CalendarCheck, School, Wallet } from "lucide-react";
 import { db } from "@/lib/db";
@@ -7,7 +8,7 @@ import { Card, Table, Tabs, Title } from "@/components/ui";
 import { Pagination } from "@/components/pagination";
 import { StudentOverview, type Section } from "@/components/student-overview";
 import { getPaging } from "@/lib/paging";
-import { WEEKDAYS, addDays, fmtDate, fmtMoney, isoDate, mondayOf, todayUTC } from "@/lib/format";
+import { WEEKDAYS, addDays, fmtDate, fmtMoney, isoDate, mondayOf, todayUTC, roomLabel } from "@/lib/format";
 
 const INV_ST = { UNPAID: ["Chưa đóng", "bg-red-100 text-red-600"], PARTIAL: ["Đóng một phần", "bg-yellow-100 text-yellow-800"], PAID: ["Đã đóng đủ", "bg-green-100 text-green-800"], VOID: ["Đã huỷ", "bg-slate-200 text-slate-600"] } as const;
 
@@ -302,14 +303,13 @@ export async function PortalSection({ searchParams, title, sections, path, paged
       {isAtt && sum && (
         <>
           <Card className="p-3">
-            <form className="flex flex-wrap items-end gap-3">
+            <AutoForm className="flex flex-wrap items-end gap-3">
               <input type="hidden" name="child" value={kid.id} />
               <input type="hidden" name="view" value={sp.view === "list" ? "list" : "calendar"} />
               <label className="flex flex-col gap-1 text-xs font-medium text-slate-600">Lớp
                 <select name="classId" defaultValue={sp.classId ?? ""} className="h-9 rounded-md border bg-white px-3 text-sm"><option value="">Tất cả lớp</option>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
               </label>
-              <button className="h-9 rounded-md bg-orange-600 px-4 text-sm font-medium text-white hover:bg-orange-700">Lọc</button>
-            </form>
+            </AutoForm>
           </Card>
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
             {[["Có mặt", sum.present, "text-green-700"], ["Đi muộn", sum.late, "text-yellow-700"], ["Vắng có phép", sum.excused, "text-sky-700"], ["Vắng", sum.absent, "text-red-600"], ["Chuyên cần", all ? `${Math.round(((sum.present + sum.late) / all) * 100)}%` : "-", ""]].map(([l, v, c]) => (
@@ -345,7 +345,7 @@ export async function PortalHome({ searchParams }: { searchParams: Promise<SP> }
     db.enrollment.findMany({ where: { studentId: kid.id, status: "ACTIVE" }, include: { class: { include: { teacher: true } } } }),
     db.attendance.groupBy({ by: ["status"], where: { studentId: kid.id, status: { not: "PENDING" } }, _count: true }),
     db.invoice.findMany({ where: { studentId: kid.id, status: { in: ["UNPAID", "PARTIAL"] } }, orderBy: { dueDate: "asc" } }),
-    db.session.findMany({ where: { date: { gte: today, lte: addDays(today, 7) }, status: { not: "CANCELLED" }, ...learnerSessions }, orderBy: [{ date: "asc" }, { startTime: "asc" }], include: { class: true, room: true, teacher: true } }),
+    db.session.findMany({ where: { date: { gte: today, lte: addDays(today, 7) }, status: { not: "CANCELLED" }, ...learnerSessions }, orderBy: [{ date: "asc" }, { startTime: "asc" }], include: { class: true, room: { include: { branch: true } }, teacher: true } }),
     db.remark.findMany({ where: { studentId: kid.id }, orderBy: { createdAt: "desc" }, take: 3 }),
     db.class.findMany({ where: { gradeTemplateId: { not: null }, enrollments: { some: { studentId: kid.id } } }, include: { gradeTemplate: { include: { columns: { orderBy: { order: "asc" } } } } }, orderBy: { name: "asc" } }),
     db.gradeValue.findMany({ where: { studentId: kid.id } }),
@@ -394,7 +394,7 @@ export async function PortalHome({ searchParams }: { searchParams: Promise<SP> }
             {todayList.length ? (
               <>
                 <div className="font-semibold">Hôm nay có {todayList.length} buổi học</div>
-                <ul className="mt-1 space-y-0.5">{todayList.map((s) => <li key={s.id} className={toMin(s.endTime) <= nowMin ? "opacity-60 line-through" : ""}>{s.startTime}–{s.endTime} · {s.class.name}{s.room ? ` · ${s.room.name}` : ""}</li>)}</ul>
+                <ul className="mt-1 space-y-0.5">{todayList.map((s) => <li key={s.id} className={toMin(s.endTime) <= nowMin ? "opacity-60 line-through" : ""}>{s.startTime}–{s.endTime} · {s.class.name}{s.room ? ` · ${roomLabel(s.room)}` : ""}</li>)}</ul>
                 {inMin != null && <div className="mt-2 font-medium">Buổi kế tiếp sau {inMin >= 60 ? `${Math.floor(inMin / 60)} giờ ${inMin % 60} phút` : `${inMin} phút`}</div>}
               </>
             ) : next ? (
@@ -423,7 +423,7 @@ export async function PortalHome({ searchParams }: { searchParams: Promise<SP> }
                 return (
                   <div key={t} className="flex gap-4 px-4 py-3">
                     <div className={`w-16 shrink-0 rounded-lg p-2 text-center ${t === today.getTime() ? "bg-orange-600 text-white" : "bg-slate-100"}`}><div className="text-[11px] uppercase">{WEEKDAYS[d.getUTCDay()]}</div><div className="text-xl font-bold leading-tight">{d.getUTCDate()}</div><div className="text-[11px] opacity-80">Th {d.getUTCMonth() + 1}</div></div>
-                    <ul className="min-w-0 flex-1 space-y-1.5 self-center text-sm">{list.map((s) => <li key={s.id}><b className="tabular-nums">{s.startTime}–{s.endTime}</b> · {s.class.name}<div className="text-xs text-slate-500">{s.teacher?.fullName ?? "-"}{s.room ? ` · ${s.room.name}` : ""}</div></li>)}</ul>
+                    <ul className="min-w-0 flex-1 space-y-1.5 self-center text-sm">{list.map((s) => <li key={s.id}><b className="tabular-nums">{s.startTime}–{s.endTime}</b> · {s.class.name}<div className="text-xs text-slate-500">{s.teacher?.fullName ?? "-"}{s.room ? ` · ${roomLabel(s.room)}` : ""}</div></li>)}</ul>
                   </div>
                 );
               })}

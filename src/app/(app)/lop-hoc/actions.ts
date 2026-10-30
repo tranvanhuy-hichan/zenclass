@@ -5,9 +5,10 @@ import { db } from "@/lib/db";
 import { assertRole, STAFF_ROLES } from "@/lib/guard";
 import { wrap, str, int, opt } from "@/lib/action";
 import { parseDate } from "@/lib/format";
-import { appendSession, generateSessions, recalcEnrollment } from "@/server/schedule";
+import { appendSession, busyFor, generateSessions, recalcEnrollment, type Busy } from "@/server/schedule";
 import { notifyStudent } from "@/lib/notify";
 import { audit } from "@/lib/audit";
+import { assertSameCourse } from "@/server/course-rules";
 
 function readSchedules(fd: FormData) {
   const days = fd.getAll("weekday").map(Number);
@@ -16,10 +17,32 @@ function readSchedules(fd: FormData) {
   return days.map((weekday) => ({ weekday, startTime: start, endTime: end }));
 }
 
+async function checkBranchRoom(fd: FormData) {
+  const mode = str(fd, "mode") === "ONLINE" ? "ONLINE" : "OFFLINE";
+  const branchId = str(fd, "branchId"), roomId = str(fd, "roomId");
+  if (mode === "OFFLINE" && !branchId) throw new Error("Chọn cơ sở cho lớp");
+  if (roomId) {
+    const r = await db.room.findUnique({ where: { id: roomId }, select: { branchId: true } });
+    if (!r || (branchId && r.branchId !== branchId)) throw new Error("Phòng học không thuộc cơ sở đã chọn");
+  }
+}
+
+/** Kiểm tra lịch dự kiến: giáo viên / phòng nào đang bận (dùng cho form tạo lớp). */
+export async function checkSchedule(a: { days: number[]; startTime: string; endTime: string; startDate: string; total: number }): Promise<Busy> {
+  await assertRole(...STAFF_ROLES);
+  return busyFor(a);
+}
+
 export const createClass = wrap(async (fd) => {
   const me = await assertRole(...STAFF_ROLES);
   const name = str(fd, "name");
   if (!name || !str(fd, "startDate")) throw new Error("Nhập tên lớp và ngày bắt đầu");
+  if (!str(fd, "courseId")) throw new Error("Chọn khoá học cho lớp");
+  await checkBranchRoom(fd);
+  const busy = await busyFor({ days: fd.getAll("weekday").map(Number), startTime: str(fd, "startTime"), endTime: str(fd, "endTime"), startDate: str(fd, "startDate"), total: int(fd, "totalSessions", 24) });
+  const tId = opt(fd, "teacherId"), rId = opt(fd, "roomId");
+  if (tId && busy.teachers[tId]) throw new Error(`Giáo viên đã có lịch dạy: ${busy.teachers[tId]}`);
+  if (rId && busy.rooms[rId]) throw new Error(`Phòng đã có lớp: ${busy.rooms[rId]}`);
   const c = await db.class.create({
     data: {
       name,
@@ -34,6 +57,7 @@ export const createClass = wrap(async (fd) => {
       totalSessions: int(fd, "totalSessions", 24),
       maxStudents: int(fd, "maxStudents", 20),
       tuitionFee: int(fd, "tuitionFee"),
+      courseId: opt(fd, "courseId"),
       gradeTemplateId: opt(fd, "gradeTemplateId"),
       schedules: { create: readSchedules(fd) },
     },
@@ -47,6 +71,8 @@ export const createClass = wrap(async (fd) => {
 export const updateClass = wrap(async (fd) => {
   const me = await assertRole(...STAFF_ROLES);
   const id = str(fd, "id");
+  if (!str(fd, "courseId")) throw new Error("Chọn khoá học cho lớp");
+  await checkBranchRoom(fd);
   await db.class.update({
     where: { id },
     data: {
@@ -61,6 +87,7 @@ export const updateClass = wrap(async (fd) => {
       maxStudents: int(fd, "maxStudents", 20),
       tuitionFee: int(fd, "tuitionFee"),
       finished: fd.get("finished") === "on",
+      courseId: opt(fd, "courseId"),
       gradeTemplateId: opt(fd, "gradeTemplateId"),
     },
   });
@@ -141,6 +168,7 @@ export const transferStudent = wrap(async (fd) => {
   const e = await db.enrollment.findUniqueOrThrow({ where: { id: str(fd, "id") } });
   const toClass = str(fd, "toClassId");
   if (!toClass || toClass === e.classId) throw new Error("Chọn lớp khác");
+  await assertSameCourse(e.classId, toClass, "chuyển lớp");
   const target = await db.class.findUniqueOrThrow({ where: { id: toClass } });
   const remain = Math.max(e.totalSessions - e.usedSessions, 0);
   await db.enrollment.update({ where: { id: e.id }, data: { status: "FINISHED", totalSessions: e.usedSessions } });

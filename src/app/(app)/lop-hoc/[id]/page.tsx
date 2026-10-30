@@ -8,7 +8,7 @@ import { DialogButton } from "@/components/dialog";
 import { Card, Field, inputCls, Table, Tabs } from "@/components/ui";
 import { Pagination } from "@/components/pagination";
 import { getPaging } from "@/lib/paging";
-import { WEEKDAYS, fmtDate, fmtMoney } from "@/lib/format";
+import { WEEKDAYS, fmtDate, fmtMoney, roomLabel } from "@/lib/format";
 import { computeTotal, rankOf } from "@/lib/grade";
 import { findConflicts } from "@/server/schedule";
 import { ClassFormFields } from "../class-fields";
@@ -27,7 +27,7 @@ export default async function ClassDetail({ params, searchParams }: { params: Pr
   const tab = TABS.some(([k]) => k === sp.tab) ? sp.tab! : "overview";
   const pg = getPaging(sp, 15);
 
-  const c = await db.class.findUnique({ where: { id }, include: { schedules: true, gradeTemplate: { include: { columns: { orderBy: { order: "asc" } } } }, teacher: true, assistant: true, coordinator: true, room: true } });
+  const c = await db.class.findUnique({ where: { id }, include: { schedules: true, gradeTemplate: { include: { columns: { orderBy: { order: "asc" } } } }, teacher: true, assistant: true, coordinator: true, room: { include: { branch: true } }, course: true } });
   if (!c) notFound();
 
   const [activeCount, enrollTotal, done, planned, conflicts] = await Promise.all([
@@ -65,7 +65,7 @@ export default async function ClassDetail({ params, searchParams }: { params: Pr
               <span>GV: <b>{c.teacher?.fullName ?? "-"}</b></span>
               <span>Trợ giảng: <b>{c.assistant?.fullName ?? "-"}</b></span>
               <span>Giáo vụ: <b>{c.coordinator?.fullName ?? "-"}</b></span>
-              <span>Phòng: <b>{c.room?.name ?? "-"}</b></span>
+              <span>Phòng: <b>{roomLabel(c.room) ?? "-"}</b></span>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -148,7 +148,7 @@ export default async function ClassDetail({ params, searchParams }: { params: Pr
       {tab === "students" && await (async () => {
         const [list, others] = await Promise.all([
           db.enrollment.findMany({ where: { classId: id }, include: { student: true }, orderBy: [{ status: "asc" }, { student: { fullName: "asc" } }], skip: pg.skip, take: pg.take }),
-          db.class.findMany({ where: { finished: false, id: { not: id } }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+          db.class.findMany({ where: { finished: false, id: { not: id }, courseId: c.courseId ?? "none" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
         ]);
         return (
           <div className="space-y-3">
@@ -169,8 +169,8 @@ export default async function ClassDetail({ params, searchParams }: { params: Pr
                             <DialogButton variant="secondary" label="Đổi lớp" title={`Đổi lớp · ${e.student.fullName}`}>
                               <ActionForm action={transferStudent} submit="Chuyển lớp" className="flex flex-col gap-3 [&>button]:self-start">
                                 <input type="hidden" name="id" value={e.id} />
-                                <p className="text-sm text-slate-600">Giữ nguyên số buổi còn lại ({Math.max(left, 0)} buổi).</p>
-                                <Field label="Chuyển sang lớp"><select name="toClassId" className={inputCls + " w-full"}><option value="">-- chọn lớp --</option>{others.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</select></Field>
+                                <p className="text-sm text-slate-600">Giữ nguyên số buổi còn lại ({Math.max(left, 0)} buổi). Chỉ chuyển được sang lớp cùng khoá{c.course ? ` "${c.course.name}"` : ""}.</p>
+                                <Field label="Chuyển sang lớp"><select name="toClassId" className={inputCls + " w-full"}><option value="">-- chọn lớp --</option>{others.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</select>{!others.length && <span className="text-xs text-red-600">Không có lớp nào khác cùng khoá.</span>}</Field>
                               </ActionForm>
                             </DialogButton>
                           </>
@@ -246,8 +246,8 @@ export default async function ClassDetail({ params, searchParams }: { params: Pr
 
       {/* ===== Thông tin & Lịch ===== */}
       {tab === "settings" && await (async () => {
-        const [teachers, assistants, coordinators, rooms, templates] = await Promise.all([
-          db.teacher.findMany({ orderBy: { fullName: "asc" } }), db.assistant.findMany({ orderBy: { fullName: "asc" } }), db.coordinator.findMany({ orderBy: { fullName: "asc" } }), db.room.findMany({ orderBy: { name: "asc" } }), db.gradeTemplate.findMany({ orderBy: { name: "asc" } }),
+        const [teachers, assistants, coordinators, rooms, templates, courses, branches] = await Promise.all([
+          db.teacher.findMany({ orderBy: { fullName: "asc" } }), db.assistant.findMany({ orderBy: { fullName: "asc" } }), db.coordinator.findMany({ orderBy: { fullName: "asc" } }), db.room.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, branchId: true, capacity: true } }), db.gradeTemplate.findMany({ orderBy: { name: "asc" } }), db.course.findMany({ orderBy: { name: "asc" } }), db.branch.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
         ]);
         const sched = c.schedules[0];
         return (
@@ -256,8 +256,8 @@ export default async function ClassDetail({ params, searchParams }: { params: Pr
               <h2 className="mb-3 font-semibold">Thông tin lớp</h2>
               <ActionForm action={updateClass} submit="Lưu thông tin lớp" reset={false} className="flex flex-col gap-4 [&>button]:self-start">
                 <input type="hidden" name="id" value={c.id} />
-                <ClassFormFields edit withSchedule={false} showRate={me.role === "ADMIN"} teachers={teachers} assistants={assistants} coordinators={coordinators} rooms={rooms} templates={templates}
-                  defaults={{ name: c.name, mode: c.mode, teacherId: c.teacherId, assistantId: c.assistantId, coordinatorId: c.coordinatorId, billing: c.billing, teacherRate: c.teacherRate, roomId: c.roomId, maxStudents: c.maxStudents, tuitionFee: c.tuitionFee, finished: c.finished, gradeTemplateId: c.gradeTemplateId }} />
+                <ClassFormFields edit withSchedule={false} showRate={me.role === "ADMIN"} teachers={teachers} assistants={assistants} coordinators={coordinators} rooms={rooms} branches={branches} templates={templates} courses={courses}
+                  defaults={{ name: c.name, mode: c.mode, teacherId: c.teacherId, assistantId: c.assistantId, coordinatorId: c.coordinatorId, billing: c.billing, teacherRate: c.teacherRate, roomId: c.roomId, maxStudents: c.maxStudents, tuitionFee: c.tuitionFee, finished: c.finished, gradeTemplateId: c.gradeTemplateId, courseId: c.courseId }} />
               </ActionForm>
             </Card>
             <Card>

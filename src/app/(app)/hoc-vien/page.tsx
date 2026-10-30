@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { ViewToggle, pickView } from "@/components/view-toggle";
+import { AutoForm } from "@/components/auto-form";
 import { db } from "@/lib/db";
 import { requireRole, STAFF_ROLES } from "@/lib/guard";
 import { inputCls, Table, Title } from "@/components/ui";
@@ -13,10 +15,11 @@ const SUB = (st: StudentStatus, remain: number | null) =>
 
 const TABS: [string, string][] = [["all", "Tất cả"], ["learning", "Đang học"], ["waiting", "Chờ lớp"], ["makeup", "Nghỉ chưa xếp bù"], ["ending", "Sắp hết"], ["finished", "Hết khóa"], ["dropped", "Nghỉ học"]];
 
-export default async function Students({ searchParams }: { searchParams: Promise<{ q?: string; tab?: string; sort?: string; classId?: string; page?: string; size?: string }> }) {
+export default async function Students({ searchParams }: { searchParams: Promise<{ q?: string; tab?: string; sort?: string; classId?: string; page?: string; size?: string; v?: string }> }) {
   await requireRole(...STAFF_ROLES);
   const sp = await searchParams;
   const { q = "", tab = "all", sort = "az", classId = "" } = sp;
+  const view = pickView(sp.v, "table");
   const pg = getPaging(sp);
   const [all, classes] = await Promise.all([loadStudents(), db.class.findMany({ where: { finished: false }, orderBy: { name: "asc" }, select: { id: true, name: true } })]);
   const kw = q.toLowerCase();
@@ -28,7 +31,7 @@ export default async function Students({ searchParams }: { searchParams: Promise
   if (sort === "za") list = [...list].reverse();
   if (sort === "new") list = [...list].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   const shown = list.slice(pg.skip, pg.skip + pg.take);
-  const params = { q, tab, sort, classId, size: sp.size };
+  const params = { q, tab, sort, classId, size: sp.size, v: sp.v };
 
   return (
     <div className="space-y-4">
@@ -40,13 +43,14 @@ export default async function Students({ searchParams }: { searchParams: Promise
           </Link>
         ))}
       </div>
-      <form className="flex gap-2">
-        <input type="hidden" name="tab" value={tab} />
+      <AutoForm className="flex gap-2">
+        <input type="hidden" name="tab" value={tab} /><input type="hidden" name="v" value={view} />
         <input name="q" defaultValue={q} placeholder="Tìm theo tên, mã, SĐT..." className={inputCls + " flex-1"} />
         <select name="classId" defaultValue={classId} className={inputCls + " max-w-56"}><option value="">Tất cả lớp</option>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
         <select name="sort" defaultValue={sort} className={inputCls}><option value="az">Tên A-Z</option><option value="za">Tên Z-A</option><option value="new">Mới nhất</option></select>
-        <button className="h-9 rounded-md border bg-white px-4 text-sm">Lọc</button>
-      </form>
+        <ViewToggle path="/hoc-vien" params={{ q, tab, sort, classId, size: sp.size }} view={view} />
+      </AutoForm>
+      {view === "table" ? (
       <Table head={["Học viên", "Trạng thái", "Lớp đang học", "Phụ huynh"]}>
         {shown.map((s) => {
           const st = s.status as StudentStatus;
@@ -83,6 +87,37 @@ export default async function Students({ searchParams }: { searchParams: Promise
         })}
         {!shown.length && <tr><td colSpan={4} className="py-8 text-center text-slate-500">Không có học viên phù hợp.</td></tr>}
       </Table>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {shown.map((s) => {
+            const st = s.status as StudentStatus;
+            const classes = s.enrollments.filter((e) => e.status === "ACTIVE").map((e) => e.class.name);
+            const hue = [...s.id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 0);
+            return (
+              <Link key={s.id} href={`/hoc-vien/${s.id}`}>
+                <div className={`flex h-full flex-col gap-3 rounded-lg border bg-white p-4 transition-colors hover:border-orange-400 ${st === "dropped" ? "opacity-60" : ""}`}>
+                  <div className="flex items-center gap-3">
+                    <span className="grid size-12 shrink-0 place-items-center rounded-full text-lg font-bold" style={{ background: `hsl(${hue} 70% 90%)`, color: `hsl(${hue} 60% 25%)` }}>{s.fullName.split(" ").pop()?.[0]}</span>
+                    <div className="min-w-0">
+                      <div className={`truncate text-base font-semibold ${st === "dropped" ? "line-through" : ""}`}>{s.fullName}</div>
+                      <div className="truncate text-xs text-slate-500">{s.code}{s.phone ? ` · ${s.phone}` : ""}</div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className={`flex items-center gap-2 text-sm font-semibold ${TEXT[st]}`}><i className={`inline-block size-2 rounded-full ${DOT[st]}`} />{STATUS_LABEL[st]}</div>
+                    <div className="mt-0.5 pl-4 text-xs text-slate-500">{SUB(st, s.remain)}</div>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {classes.length ? <>{classes.slice(0, 3).map((c) => <span key={c} className="rounded bg-slate-100 px-2 py-0.5 text-xs">{c}</span>)}{classes.length > 3 && <span className="rounded bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">+{classes.length - 3}</span>}</> : <span className="text-xs text-slate-400">Chưa có lớp</span>}
+                  </div>
+                  <div className="mt-auto border-t pt-2 text-xs text-slate-500">Phụ huynh: {s.parent ? `${s.parent.fullName}${s.parent.phone ? ` · ${s.parent.phone}` : ""}` : "—"}</div>
+                </div>
+              </Link>
+            );
+          })}
+          {!shown.length && <p className="text-sm text-slate-500">Không có học viên phù hợp.</p>}
+        </div>
+      )}
       <Pagination total={list.length} page={pg.page} size={pg.size} path="/hoc-vien" params={params} />
     </div>
   );

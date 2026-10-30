@@ -7,6 +7,7 @@ import { recalcEnrollment } from "@/server/schedule";
 import { notifyStudent } from "@/lib/notify";
 import { getSettings } from "@/lib/settings";
 import { todayUTC } from "@/lib/format";
+import { assertSameCourse } from "@/server/course-rules";
 import type { AttendanceStatus } from "@prisma/client";
 
 const STATUSES = ["PRESENT", "LATE", "ABSENT_EXCUSED", "ABSENT"];
@@ -73,6 +74,7 @@ export const arrangeMakeup = wrap(async (fd) => {
   if (!sessionId) throw new Error("Chọn buổi học bù");
   const ab = await db.attendance.findUniqueOrThrow({ where: { id: absentId }, include: { session: true } });
   const target = await db.session.findUniqueOrThrow({ where: { id: sessionId }, include: { class: true } });
+  await assertSameCourse(ab.session.classId, target.classId, "học bù");
   if (await db.attendance.findUnique({ where: { sessionId_studentId: { sessionId, studentId: ab.studentId } } }))
     throw new Error("Học viên đã có mặt trong buổi này");
   await db.attendance.create({

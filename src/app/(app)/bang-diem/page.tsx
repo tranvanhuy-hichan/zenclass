@@ -1,17 +1,18 @@
 import Link from "next/link";
+import { ViewToggle, pickView } from "@/components/view-toggle";
 import { db } from "@/lib/db";
 import { requireRole, STAFF_ROLES } from "@/lib/guard";
 import { DialogButton } from "@/components/dialog";
 import { ActionForm } from "@/components/action-form";
-import { Card, Field, inputCls, Title } from "@/components/ui";
+import { Card, Field, inputCls, Table, Title } from "@/components/ui";
 import { Pagination } from "@/components/pagination";
 import { getPaging } from "@/lib/paging";
-import { Info } from "lucide-react";
 import { createTemplate, duplicateTemplate } from "./actions";
 
-export default async function GradeTemplates({ searchParams }: { searchParams: Promise<{ page?: string; size?: string }> }) {
+export default async function GradeTemplates({ searchParams }: { searchParams: Promise<{ page?: string; size?: string; v?: string }> }) {
   await requireRole(...STAFF_ROLES);
   const sp = await searchParams;
+  const view = pickView(sp.v, "cards");
   const pg = getPaging(sp, 12);
   const [total, templates] = await Promise.all([
     db.gradeTemplate.count(),
@@ -22,18 +23,14 @@ export default async function GradeTemplates({ searchParams }: { searchParams: P
   ]);
   return (
     <div className="space-y-4">
-      <Title right={<DialogButton label="+ Tạo bộ điểm" title="Tạo bộ điểm mới">
+      <Title right={<><ViewToggle path="/bang-diem" params={{ size: sp.size, v: sp.v }} view={view} /><DialogButton label="+ Tạo bộ điểm" title="Tạo bộ điểm mới">
         <ActionForm action={createTemplate} submit="Tạo bộ điểm" className="flex flex-col gap-3 [&>button]:self-start">
           <Field label="Tên bộ điểm"><input name="name" className={inputCls + " w-full"} required placeholder="vd: Tiếng Anh giao tiếp" /></Field>
           <Field label="Bắt đầu từ"><select name="preset" className={inputCls + " w-full"}><option value="standard">Chuyên cần + Giữa kỳ + Cuối kỳ</option><option value="ielts">IELTS 4 kỹ năng</option><option value="blank">Trống</option></select></Field>
         </ActionForm>
-      </DialogButton>}>Bộ điểm ({total})</Title>
+      </DialogButton></>}>Bộ điểm ({total})</Title>
 
-      <div className="flex items-start gap-2 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm">
-        <Info className="mt-0.5 size-4 shrink-0 text-orange-700" />
-        <p>Mỗi <b>bộ điểm</b> gồm các <b>cột điểm</b> và <b>cách tính tổng</b> (trung bình theo trọng số hoặc công thức tự viết). Tạo một lần rồi <b>áp dụng cho nhiều lớp</b>; giáo viên chỉ việc nhập điểm.</p>
-      </div>
-
+      {view === "cards" ? (
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {templates.map((t) => (
           <Card key={t.id} className="flex flex-col gap-3">
@@ -72,7 +69,22 @@ export default async function GradeTemplates({ searchParams }: { searchParams: P
         ))}
         {!templates.length && <p className="text-sm text-slate-500">Chưa có bộ điểm nào. Hãy tạo bộ đầu tiên.</p>}
       </div>
-      <Pagination total={total} page={pg.page} size={pg.size} path="/bang-diem" params={{ size: sp.size }} />
+      ) : (
+        <Table head={["Bộ điểm", "Cột điểm", "Thang", "Cách tính", "Lớp áp dụng", ""]}>
+          {templates.map((t) => (
+            <tr key={t.id} className="align-middle [&>td]:!py-3">
+              <td><Link data-row href={`/bang-diem/${t.id}`} className="font-semibold text-orange-700 hover:underline">{t.name}</Link></td>
+              <td className="max-w-xs"><div className="flex flex-wrap gap-1">{t.columns.map((c) => <span key={c.id} className="rounded bg-slate-100 px-2 py-0.5 text-xs">{c.name} ×{c.weight}</span>)}</div></td>
+              <td>{t.scale}</td>
+              <td>{t.formula.trim() ? <code className="rounded bg-slate-100 px-2 py-0.5 text-xs">{t.formula}</code> : "Trung bình trọng số"}</td>
+              <td>{t.classes.length} lớp</td>
+              <td><ActionForm action={duplicateTemplate} submit="Nhân bản" reset={false} compact className="inline-flex"><input type="hidden" name="id" value={t.id} /></ActionForm></td>
+            </tr>
+          ))}
+          {!templates.length && <tr><td colSpan={6} className="py-8 text-center text-slate-500">Chưa có bộ điểm nào.</td></tr>}
+        </Table>
+      )}
+      <Pagination total={total} page={pg.page} size={pg.size} path="/bang-diem" params={{ size: sp.size, v: sp.v }} />
     </div>
   );
 }

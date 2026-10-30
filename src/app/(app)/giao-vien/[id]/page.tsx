@@ -8,7 +8,7 @@ import { Card, Table, Tabs } from "@/components/ui";
 import { Pagination } from "@/components/pagination";
 import { TeacherFields } from "@/components/person-fields";
 import { getPaging } from "@/lib/paging";
-import { WEEKDAYS, addDays, fmtDate, fmtMoney, todayUTC } from "@/lib/format";
+import { WEEKDAYS, addDays, fmtDate, fmtMoney, todayUTC, roomLabel } from "@/lib/format";
 import { computePay, monthRange, PAY_LABEL } from "@/server/payroll";
 import { deleteTeacher, resetUserPassword, updateTeacher } from "../actions";
 
@@ -35,7 +35,7 @@ export default async function TeacherDetail({ params, searchParams }: { params: 
     db.class.findMany({ where: { ...mine, finished: false }, include: { schedules: true, _count: { select: { enrollments: { where: { status: "ACTIVE" } } } } }, orderBy: { name: "asc" } }),
     db.enrollment.count({ where: { status: "ACTIVE", class: { ...mine, finished: false } } }),
     db.session.findMany({ where: { teacherId: id, status: "DONE", date: { gte: from, lt: to } }, select: { startTime: true, endTime: true, originalTeacherId: true, payAmount: true, class: { select: { teacherRate: true } } } }),
-    db.session.findMany({ where: { teacherId: id, status: "PLANNED", date: { gte: today } }, orderBy: [{ date: "asc" }, { startTime: "asc" }], take: 5, include: { class: true, room: true } }),
+    db.session.findMany({ where: { teacherId: id, status: "PLANNED", date: { gte: today } }, orderBy: [{ date: "asc" }, { startTime: "asc" }], take: 5, include: { class: true, room: { include: { branch: true } } } }),
   ]);
   const pay = computePay(t, monthSessions);
 
@@ -66,7 +66,7 @@ export default async function TeacherDetail({ params, searchParams }: { params: 
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link href={`/lich-hoc?by=teacher&f=${t.id}`} className="inline-flex h-9 items-center rounded-md bg-orange-600 px-4 text-sm font-medium text-white hover:bg-orange-700">Xem lịch dạy</Link>
+          <Link href={`/lich-hoc?teacher=${t.id}`} className="inline-flex h-9 items-center rounded-md bg-orange-600 px-4 text-sm font-medium text-white hover:bg-orange-700">Xem lịch dạy</Link>
           <Link href="/giao-vien" className="inline-flex h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50">← Danh sách</Link>
           {me.role === "ADMIN" && (
             <details className="relative">
@@ -108,7 +108,7 @@ export default async function TeacherDetail({ params, searchParams }: { params: 
               <ul className="divide-y text-sm">
                 {upcoming5.map((s) => (
                   <li key={s.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
-                    <div><b className="tabular-nums">{WEEKDAYS[s.date.getUTCDay()]} {fmtDate(s.date)}</b> · {s.startTime}-{s.endTime}<div className="text-xs text-slate-500">{s.class.name}{s.room ? ` · ${s.room.name}` : ""}</div></div>
+                    <div><b className="tabular-nums">{WEEKDAYS[s.date.getUTCDay()]} {fmtDate(s.date)}</b> · {s.startTime}-{s.endTime}<div className="text-xs text-slate-500">{s.class.name}{s.room ? ` · ${roomLabel(s.room)}` : ""}</div></div>
                   </li>
                 ))}
                 {!upcoming5.length && <li className="px-4 py-8 text-center text-slate-500">Không có buổi dạy sắp tới.</li>}
@@ -131,7 +131,7 @@ export default async function TeacherDetail({ params, searchParams }: { params: 
         const where = { ...mine, ...(sp.all ? {} : { finished: false }) };
         const [total, list] = await Promise.all([
           db.class.count({ where }),
-          db.class.findMany({ where, orderBy: { name: "asc" }, skip: pg.skip, take: pg.take, include: { schedules: true, room: true, _count: { select: { enrollments: { where: { status: "ACTIVE" } } } } } }),
+          db.class.findMany({ where, orderBy: { name: "asc" }, skip: pg.skip, take: pg.take, include: { schedules: true, room: { include: { branch: true } }, _count: { select: { enrollments: { where: { status: "ACTIVE" } } } } } }),
         ]);
         return (
           <div className="space-y-3">
@@ -144,7 +144,7 @@ export default async function TeacherDetail({ params, searchParams }: { params: 
                 <tr key={c.id}>
                   <td><Link data-row href={`/lop-hoc/${c.id}`} className="font-medium text-orange-700 hover:underline">{c.name}</Link></td>
                   <td>{c.schedules.map((s) => `${WEEKDAYS[s.weekday]} ${s.startTime}-${s.endTime}`).join(" • ")}</td>
-                  <td>{c.room?.name ?? "-"}</td><td>{c._count.enrollments}/{c.maxStudents}</td>
+                  <td>{roomLabel(c.room) ?? "-"}</td><td>{c._count.enrollments}/{c.maxStudents}</td>
                   <td>{c.finished ? <span className="rounded bg-slate-200 px-2 py-0.5 text-xs">Đã kết thúc</span> : <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-800">Đang mở</span>}</td>
                 </tr>
               ))}
@@ -160,16 +160,16 @@ export default async function TeacherDetail({ params, searchParams }: { params: 
         const where = { teacherId: id, date: { gte: today }, status: { not: "CANCELLED" as const } };
         const [total, list] = await Promise.all([
           db.session.count({ where }),
-          db.session.findMany({ where, orderBy: [{ date: "asc" }, { startTime: "asc" }], skip: pg.skip, take: pg.take, include: { class: { include: { _count: { select: { enrollments: { where: { status: "ACTIVE" } } } } } }, room: true } }),
+          db.session.findMany({ where, orderBy: [{ date: "asc" }, { startTime: "asc" }], skip: pg.skip, take: pg.take, include: { class: { include: { _count: { select: { enrollments: { where: { status: "ACTIVE" } } } } } }, room: { include: { branch: true } } } }),
         ]);
         return (
           <div className="space-y-3">
-            <div className="flex items-center justify-between text-sm"><span className="text-slate-600">{total} buổi sắp tới</span><Link href={`/lich-hoc?by=teacher&f=${id}`} className="text-orange-700 hover:underline">Mở lịch dạng lưới →</Link></div>
+            <div className="flex items-center justify-between text-sm"><span className="text-slate-600">{total} buổi sắp tới</span><Link href={`/lich-hoc?teacher=${id}`} className="text-orange-700 hover:underline">Mở lịch dạng lưới →</Link></div>
             <Table head={["Ngày", "Giờ", "Lớp", "Phòng", "Học viên", ""]}>
               {list.map((s) => (
                 <tr key={s.id} className={s.date.getTime() === today.getTime() ? "bg-orange-50" : ""}>
                   <td className="whitespace-nowrap">{WEEKDAYS[s.date.getUTCDay()]}, {fmtDate(s.date)}{s.date.getTime() === today.getTime() && <span className="ml-1 rounded bg-orange-600 px-1.5 text-[10px] text-white">Hôm nay</span>}</td>
-                  <td className="whitespace-nowrap">{s.startTime}-{s.endTime}</td><td>{s.class.name}{s.originalTeacherId && <span className="ml-1 rounded bg-sky-100 px-1.5 text-[11px] text-sky-700">Dạy thế</span>}</td><td>{s.room?.name ?? "-"}</td><td>{s.class._count.enrollments}</td>
+                  <td className="whitespace-nowrap">{s.startTime}-{s.endTime}</td><td>{s.class.name}{s.originalTeacherId && <span className="ml-1 rounded bg-sky-100 px-1.5 text-[11px] text-sky-700">Dạy thế</span>}</td><td>{roomLabel(s.room) ?? "-"}</td><td>{s.class._count.enrollments}</td>
                   <td><Link href={`/diem-danh/${s.id}`} className="text-orange-700 hover:underline">Điểm danh</Link></td>
                 </tr>
               ))}

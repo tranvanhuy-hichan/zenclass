@@ -1,7 +1,8 @@
 "use client";
-import { useActionState, useMemo, useState } from "react";
-import { BookOpenCheck, CalendarDays, ClipboardCheck, GraduationCap, UserCheck, Wallet } from "lucide-react";
-import { createClass } from "../actions";
+import { useActionState, useEffect, useMemo, useState } from "react";
+import { BookOpenCheck, CalendarDays, DoorOpen, ClipboardCheck, GraduationCap, UserCheck, Wallet } from "lucide-react";
+import { checkSchedule, createClass } from "../actions";
+import { BranchRoomFields, type BranchOpt, type RoomOpt } from "../branch-room";
 
 type Opt = { id: string; label: string };
 const WD = [[1, "Thứ 2"], [2, "Thứ 3"], [3, "Thứ 4"], [4, "Thứ 5"], [5, "Thứ 6"], [6, "Thứ 7"], [0, "CN"]] as const;
@@ -25,7 +26,7 @@ function fmt(d: Date) {
   return `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${d.getUTCFullYear()}`;
 }
 
-export function NewClassForm({ teachers, assistants, coordinators, rooms, templates, today, showRate = false }: { showRate?: boolean; teachers: Opt[]; assistants: Opt[]; coordinators: Opt[]; rooms: Opt[]; templates: Opt[]; today: string }) {
+export function NewClassForm({ teachers, assistants, coordinators, rooms, branches, templates, courses, today, showRate = false }: { showRate?: boolean; teachers: Opt[]; assistants: Opt[]; coordinators: Opt[]; rooms: RoomOpt[]; branches: BranchOpt[]; templates: Opt[]; courses: Opt[]; today: string }) {
   const [res, action, pending] = useActionState(createClass, null);
   const [name, setName] = useState("");
   const [days, setDays] = useState<number[]>([]);
@@ -36,6 +37,10 @@ export function NewClassForm({ teachers, assistants, coordinators, rooms, templa
   const [fee, setFee] = useState(0);
   const [mode, setMode] = useState<"OFFLINE" | "ONLINE">("OFFLINE");
   const [billing, setBilling] = useState<"ONCE" | "MONTHLY">("ONCE");
+  const [teacherId, setTeacherId] = useState("");
+  const [roomId, setRoomId] = useState("");
+  const [busy, setBusy] = useState<{ teachers: Record<string, string>; rooms: Record<string, string> }>({ teachers: {}, rooms: {} });
+  const [checking, setChecking] = useState(false);
 
   const toggle = (d: number) => setDays((p) => (p.includes(d) ? p.filter((x) => x !== d) : [...p, d]));
   const mins = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
@@ -47,6 +52,22 @@ export function NewClassForm({ teachers, assistants, coordinators, rooms, templa
     return last;
   }, [days, start, total]);
   const timeBad = duration <= 0;
+  const ready = days.length > 0 && !timeBad && !!start && total > 0;
+  useEffect(() => {
+    if (!ready) { setBusy({ teachers: {}, rooms: {} }); return; }
+    setChecking(true);
+    const t = setTimeout(() => {
+      checkSchedule({ days, startTime: from, endTime: to, startDate: start, total })
+        .then((r) => setBusy({ teachers: r.teachers, rooms: r.rooms }))
+        .catch(() => {})
+        .finally(() => setChecking(false));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [ready, days, from, to, start, total]);
+  const teacherBusy = teacherId ? busy.teachers[teacherId] : undefined;
+  const roomBusy = roomId ? busy.rooms[roomId] : undefined;
+  const conflict = !!(teacherBusy || roomBusy);
+  const nBusyT = Object.keys(busy.teachers).length, nBusyR = Object.keys(busy.rooms).length;
 
   return (
     <form action={action} className="grid gap-4 xl:grid-cols-[1fr_340px]">
@@ -64,23 +85,8 @@ export function NewClassForm({ teachers, assistants, coordinators, rooms, templa
                 ))}
               </div>
             </div>
-            <F label="Phòng học"><select name="roomId" className={ic}><option value="">-- chưa xếp --</option>{rooms.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}</select></F>
+            <F label="Khoá học *"><select name="courseId" className={ic} required><option value="">-- chọn khoá --</option>{courses.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}</select></F>
             <div className="md:col-span-2"><F label="Bộ điểm" hint="Chọn mẫu bảng điểm cho lớp (có thể đổi sau)"><select name="gradeTemplateId" className={ic}><option value="">-- chưa chọn --</option>{templates.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select></F></div>
-          </div>
-        </Section>
-
-        <Section icon={GraduationCap} title="Đội ngũ phụ trách" hint="Mỗi lớp có 1 giáo viên, 1 trợ giảng và 1 giáo vụ — quản lý riêng ở các mục tương ứng">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-lg border bg-slate-50 p-3"><div className="mb-2 flex items-center gap-2 text-sm font-semibold"><GraduationCap className="size-4 text-orange-700" /> Giáo viên</div>
-              <select name="teacherId" className={ic}><option value="">-- chọn giáo viên --</option>{teachers.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select>
-              {showRate && <input name="teacherRate" inputMode="numeric" placeholder="Đơn giá riêng cho lớp này (đ) — tuỳ chọn" className={`${ic} mt-2`} />}
-              <p className="mt-1.5 text-xs text-slate-500">Người giảng dạy chính, được tính lương theo buổi dạy. Để trống đơn giá = theo mức lương của giáo viên.</p></div>
-            <div className="rounded-lg border bg-slate-50 p-3"><div className="mb-2 flex items-center gap-2 text-sm font-semibold"><UserCheck className="size-4 text-orange-700" /> Trợ giảng</div>
-              <select name="assistantId" className={ic}><option value="">-- chọn trợ giảng --</option>{assistants.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select>
-              <p className="mt-1.5 text-xs text-slate-500">Hỗ trợ điểm danh, chấm bài, nhập điểm.</p></div>
-            <div className="rounded-lg border bg-slate-50 p-3"><div className="mb-2 flex items-center gap-2 text-sm font-semibold"><ClipboardCheck className="size-4 text-orange-700" /> Giáo vụ</div>
-              <select name="coordinatorId" className={ic}><option value="">-- chọn giáo vụ --</option>{coordinators.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select>
-              <p className="mt-1.5 text-xs text-slate-500">Phụ trách vận hành lớp, liên hệ phụ huynh.</p></div>
           </div>
         </Section>
 
@@ -102,6 +108,37 @@ export function NewClassForm({ teachers, assistants, coordinators, rooms, templa
               <F label="Tổng số buổi"><input name="totalSessions" value={total} onChange={(e) => setTotal(parseInt(e.target.value.replace(/\D/g, "")) || 0)} inputMode="numeric" className={ic} /></F>
             </div>
             {timeBad && <p className="text-sm text-red-600">Giờ kết thúc phải sau giờ bắt đầu.</p>}
+            {ready && (
+              <div className={`rounded-md border px-3 py-2 text-sm ${conflict ? "border-red-300 bg-red-50 text-red-600" : "bg-slate-50 text-slate-600"}`}>
+                {checking ? "Đang kiểm tra trùng lịch..." : conflict ? (
+                  <ul className="list-disc pl-4">
+                    {roomBusy && <li>Phòng đã chọn bị trùng: {roomBusy}. Chọn phòng khác hoặc đổi giờ.</li>}
+                    {teacherBusy && <li>Giáo viên đã chọn bị trùng: {teacherBusy}. Chọn giáo viên khác hoặc đổi giờ.</li>}
+                  </ul>
+                ) : <>✓ Không trùng lịch với lớp nào. {(nBusyT > 0 || nBusyR > 0) && <span className="text-slate-500">Khung giờ này đang có {nBusyR} phòng và {nBusyT} giáo viên bận — đã được đánh dấu "BẬN" trong danh sách chọn.</span>}</>}
+              </div>
+            )}
+          </div>
+        </Section>
+
+        <Section icon={DoorOpen} title="Địa điểm" hint="Chọn sau khi có lịch học — phòng bận trong khung giờ này sẽ bị đánh dấu">
+          <div className="grid gap-4 md:grid-cols-2">
+            <BranchRoomFields branches={branches} rooms={rooms} busy={busy.rooms} onRoom={setRoomId} cls={ic} labelCls="flex flex-col gap-1 text-xs font-medium text-slate-600" />
+          </div>
+        </Section>
+
+        <Section icon={GraduationCap} title="Đội ngũ phụ trách" hint="Giáo viên bận trong khung giờ này sẽ bị đánh dấu. Mỗi lớp có 1 giáo viên, 1 trợ giảng và 1 giáo vụ — quản lý riêng ở các mục tương ứng">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border bg-slate-50 p-3"><div className="mb-2 flex items-center gap-2 text-sm font-semibold"><GraduationCap className="size-4 text-orange-700" /> Giáo viên</div>
+              <select name="teacherId" value={teacherId} onChange={(e) => setTeacherId(e.target.value)} className={`${ic} ${teacherBusy ? "border-red-500" : ""}`}><option value="">-- chọn giáo viên --</option>{teachers.map((t) => <option key={t.id} value={t.id} disabled={!!busy.teachers[t.id] && t.id !== teacherId}>{t.label}{busy.teachers[t.id] ? ` — BẬN: ${busy.teachers[t.id]}` : ""}</option>)}</select>{teacherBusy && <p className="mt-1 text-xs font-medium text-red-600">Giáo viên này {teacherBusy.toLowerCase()}. Hãy chọn người khác hoặc đổi lịch.</p>}
+              {showRate && <input name="teacherRate" inputMode="numeric" placeholder="Đơn giá riêng cho lớp này (đ) — tuỳ chọn" className={`${ic} mt-2`} />}
+              <p className="mt-1.5 text-xs text-slate-500">Người giảng dạy chính, được tính lương theo buổi dạy. Để trống đơn giá = theo mức lương của giáo viên.</p></div>
+            <div className="rounded-lg border bg-slate-50 p-3"><div className="mb-2 flex items-center gap-2 text-sm font-semibold"><UserCheck className="size-4 text-orange-700" /> Trợ giảng</div>
+              <select name="assistantId" className={ic}><option value="">-- chọn trợ giảng --</option>{assistants.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select>
+              <p className="mt-1.5 text-xs text-slate-500">Hỗ trợ điểm danh, chấm bài, nhập điểm.</p></div>
+            <div className="rounded-lg border bg-slate-50 p-3"><div className="mb-2 flex items-center gap-2 text-sm font-semibold"><ClipboardCheck className="size-4 text-orange-700" /> Giáo vụ</div>
+              <select name="coordinatorId" className={ic}><option value="">-- chọn giáo vụ --</option>{coordinators.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select>
+              <p className="mt-1.5 text-xs text-slate-500">Phụ trách vận hành lớp, liên hệ phụ huynh.</p></div>
           </div>
         </Section>
 
@@ -137,8 +174,9 @@ export function NewClassForm({ teachers, assistants, coordinators, rooms, templa
             <div className="flex justify-between gap-3"><dt className="text-slate-500">Học phí</dt><dd className="font-medium">{fee ? `${fee.toLocaleString("vi-VN")} đ${billing === "MONTHLY" ? "/tháng" : ""}` : "—"}</dd></div>
           </dl>
           <p className="text-xs text-slate-400">Ngày kết thúc dự kiến chưa tính ngày nghỉ lễ đã khai báo; hệ thống sẽ tự bỏ qua ngày lễ khi sinh buổi học.</p>
-          <button disabled={pending || !days.length || timeBad || !name.trim()} className="h-10 w-full rounded-md bg-orange-600 text-sm font-medium text-white hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50">{pending ? "Đang tạo..." : "Tạo lớp & sinh buổi học"}</button>
+          <button disabled={pending || !days.length || timeBad || !name.trim() || conflict} className="h-10 w-full rounded-md bg-orange-600 text-sm font-medium text-white hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50">{pending ? "Đang tạo..." : "Tạo lớp & sinh buổi học"}</button>
           {!days.length && <p className="text-xs text-slate-500">Hãy chọn ít nhất 1 ngày học.</p>}
+          {conflict && <p className="text-xs text-red-600">Lịch đang bị trùng, hãy xử lý trước khi tạo lớp.</p>}
           {res?.error && <p className="whitespace-pre-line text-sm text-red-600">{res.error}</p>}
         </div>
       </aside>

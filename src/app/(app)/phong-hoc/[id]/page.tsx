@@ -19,7 +19,7 @@ export default async function RoomDetail({ params, searchParams }: { params: Pro
   const sp = await searchParams;
   const tab = TABS.some(([k]) => k === sp.tab) ? sp.tab! : "overview";
   const pg = getPaging(sp, 12);
-  const room = await db.room.findUnique({ where: { id } });
+  const [room, branches] = await Promise.all([db.room.findUnique({ where: { id }, include: { branch: true } }), db.branch.findMany({ orderBy: { name: "asc" } })]);
   if (!room) notFound();
 
   const today = todayUTC();
@@ -50,9 +50,9 @@ export default async function RoomDetail({ params, searchParams }: { params: Pro
             <h1 className="text-xl font-semibold">{room.name}</h1>
             {todaySessions.some((x) => toMinutes(x.startTime) <= nowMin && nowMin < toMinutes(x.endTime)) ? <span className="flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800"><i className="inline-block size-1.5 animate-pulse rounded-full bg-blue-500" />Đang học</span> : <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${todaySessions.length ? "bg-orange-100 text-orange-800" : "bg-green-100 text-green-800"}`}>{todaySessions.length ? `${todaySessions.length} buổi hôm nay` : "Trống hôm nay"}</span>}
           </div>
-          <div className="mt-1 flex items-center gap-1 text-sm text-slate-600"><Users className="size-4" /> Sức chứa {room.capacity} chỗ</div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600"><span className="font-medium text-orange-700">{room.branch?.name ?? "Chưa gán cơ sở"}</span><span className="flex items-center gap-1"><Users className="size-4" /> Sức chứa {room.capacity} chỗ</span></div>
         </div>
-        <Link href={`/lich-hoc?by=room&f=${id}`} className="inline-flex h-9 items-center rounded-md bg-orange-600 px-4 text-sm font-medium text-white hover:bg-orange-700">Xem lịch phòng</Link>
+        <Link href={`/lich-hoc?room=${id}`} className="inline-flex h-9 items-center rounded-md bg-orange-600 px-4 text-sm font-medium text-white hover:bg-orange-700">Xem lịch phòng</Link>
         <Link href="/phong-hoc" className="inline-flex h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50">← Danh sách</Link>
       </Card>
 
@@ -162,6 +162,7 @@ export default async function RoomDetail({ params, searchParams }: { params: Pro
             <h2 className="mb-3 font-semibold">Thông tin phòng</h2>
             <ActionForm action={updateRoom} submit="Lưu thông tin" reset={false} className="grid max-w-2xl grid-cols-1 items-end gap-3 sm:grid-cols-2 [&>button]:justify-self-start">
               <input type="hidden" name="id" value={room.id} />
+              <Field label="Cơ sở"><select name="branchId" defaultValue={room.branchId ?? ""} className={inputCls + " w-full"} required><option value="">-- chọn cơ sở --</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></Field>
               <Field label="Tên phòng"><input name="name" defaultValue={room.name} className={inputCls + " w-full"} required /></Field>
               <Field label="Sức chứa"><input name="capacity" defaultValue={room.capacity} className={inputCls + " w-full"} /></Field>
             </ActionForm>

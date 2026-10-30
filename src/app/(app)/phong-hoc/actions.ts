@@ -9,8 +9,10 @@ export const createRoom = wrap(async (fd) => {
   await assertRole(...STAFF_ROLES);
   const name = str(fd, "name");
   if (!name) throw new Error("Nhập tên phòng");
-  if (await db.room.findUnique({ where: { name } })) throw new Error("Phòng đã tồn tại");
-  await db.room.create({ data: { name, capacity: int(fd, "capacity", 20) } });
+  const branchId = str(fd, "branchId");
+  if (!branchId) throw new Error("Chọn cơ sở cho phòng");
+  if (await db.room.findFirst({ where: { name, branchId } })) throw new Error("Cơ sở này đã có phòng cùng tên");
+  await db.room.create({ data: { name, branchId, capacity: int(fd, "capacity", 20) } });
   revalidatePath("/phong-hoc");
 });
 
@@ -29,10 +31,12 @@ export const updateRoom = wrap(async (fd) => {
   const id = str(fd, "id");
   const name = str(fd, "name");
   if (!name) throw new Error("Nhập tên phòng");
-  if (await db.room.findFirst({ where: { name, id: { not: id } } })) throw new Error("Tên phòng đã tồn tại");
+  const branchId = str(fd, "branchId");
+  if (!branchId) throw new Error("Chọn cơ sở cho phòng");
+  if (await db.room.findFirst({ where: { name, branchId, id: { not: id } } })) throw new Error("Cơ sở này đã có phòng cùng tên");
   const capacity = int(fd, "capacity", 20);
   if (capacity < 1) throw new Error("Sức chứa phải lớn hơn 0");
-  await db.room.update({ where: { id }, data: { name, capacity } });
+  await db.room.update({ where: { id }, data: { name, capacity, branchId } });
   revalidatePath("/phong-hoc");
   revalidatePath(`/phong-hoc/${id}`);
 });

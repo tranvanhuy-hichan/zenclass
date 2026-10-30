@@ -1,14 +1,15 @@
 import { Field, inputCls } from "@/components/ui";
 import { WEEKDAYS } from "@/lib/format";
+import { BranchRoomFields, type BranchOpt, type RoomOpt } from "./branch-room";
 
 type Opt = { id: string; fullName?: string; name?: string };
 const ic = inputCls + " w-full";
 
 export function ClassFormFields({
-  teachers, assistants = [], coordinators = [], rooms, templates = [], defaults = {}, withSchedule = true, edit = false, scheduleOnly = false, showRate = false,
+  teachers, assistants = [], coordinators = [], rooms, branches = [], templates = [], courses = [], defaults = {}, withSchedule = true, edit = false, scheduleOnly = false, showRate = false,
 }: {
-  teachers: Opt[]; assistants?: Opt[]; coordinators?: Opt[]; rooms: Opt[]; templates?: Opt[]; withSchedule?: boolean; edit?: boolean; scheduleOnly?: boolean; showRate?: boolean;
-  defaults?: Partial<{ name: string; mode: string; teacherId: string | null; assistantId: string | null; coordinatorId: string | null; billing: string; teacherRate: number | null; roomId: string | null; startDate: string; totalSessions: number; maxStudents: number; tuitionFee: number; startTime: string; endTime: string; days: number[]; finished: boolean; gradeTemplateId: string | null }>;
+  teachers: Opt[]; assistants?: Opt[]; coordinators?: Opt[]; rooms: RoomOpt[] | Opt[]; branches?: BranchOpt[]; templates?: Opt[]; courses?: Opt[]; withSchedule?: boolean; edit?: boolean; scheduleOnly?: boolean; showRate?: boolean;
+  defaults?: Partial<{ name: string; mode: string; teacherId: string | null; assistantId: string | null; coordinatorId: string | null; billing: string; teacherRate: number | null; roomId: string | null; startDate: string; totalSessions: number; maxStudents: number; tuitionFee: number; startTime: string; endTime: string; days: number[]; finished: boolean; courseId: string | null; gradeTemplateId: string | null }>;
 }) {
   const grid = "grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-4";
   return (
@@ -21,7 +22,8 @@ export function ClassFormFields({
             <Field label="Giáo viên"><select name="teacherId" defaultValue={defaults.teacherId ?? ""} className={ic}><option value="">--</option>{teachers.map((t) => <option key={t.id} value={t.id}>{t.fullName}</option>)}</select></Field>
             <Field label="Trợ giảng"><select name="assistantId" defaultValue={defaults.assistantId ?? ""} className={ic}><option value="">--</option>{assistants.map((t) => <option key={t.id} value={t.id}>{t.fullName}</option>)}</select></Field>
             <Field label="Giáo vụ"><select name="coordinatorId" defaultValue={defaults.coordinatorId ?? ""} className={ic}><option value="">--</option>{coordinators.map((t) => <option key={t.id} value={t.id}>{t.fullName}</option>)}</select></Field>
-            <Field label="Phòng"><select name="roomId" defaultValue={defaults.roomId ?? ""} className={ic}><option value="">--</option>{rooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select></Field>
+            {!!courses.length && <Field label="Khoá học *"><select name="courseId" defaultValue={defaults.courseId ?? ""} className={ic} required><option value="">-- chọn khoá --</option>{courses.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></Field>}
+            {!!branches.length && <BranchRoomFields branches={branches} rooms={rooms as RoomOpt[]} roomId={defaults.roomId ?? ""} cls={ic} labelCls="flex flex-col gap-1 text-xs font-medium text-slate-600" />}
             {!!templates.length && <Field label="Bộ điểm"><select name="gradeTemplateId" defaultValue={defaults.gradeTemplateId ?? ""} className={ic}><option value="">-- chưa chọn --</option>{templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></Field>}
             {!edit && <Field label="Ngày bắt đầu *"><input type="date" name="startDate" defaultValue={defaults.startDate} className={ic} required /></Field>}
             {!edit && <Field label="Tổng số buổi"><input name="totalSessions" defaultValue={defaults.totalSessions ?? 24} className={ic} /></Field>}

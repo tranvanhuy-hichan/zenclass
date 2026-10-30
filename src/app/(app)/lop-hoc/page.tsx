@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { AutoForm } from "@/components/auto-form";
 import { LayoutGrid, Rows3 } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireRole, STAFF_ROLES } from "@/lib/guard";
 import { Card, inputCls, Table, Title } from "@/components/ui";
 import { Pagination } from "@/components/pagination";
 import { getPaging } from "@/lib/paging";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, roomLabel } from "@/lib/format";
 import { ScheduleChips } from "@/components/schedule-chips";
 
 function Bar({ value, max, tone = "bg-orange-500" }: { value: number; max: number; tone?: string }) {
@@ -23,7 +24,7 @@ export default async function Classes({ searchParams }: { searchParams: Promise<
     db.class.count({ where }),
     db.class.findMany({
       where, orderBy: { name: "asc" }, skip: pg.skip, take: pg.take,
-      include: { teacher: true, room: true, schedules: true, _count: { select: { enrollments: { where: { status: "ACTIVE" } } } } },
+      include: { teacher: true, room: { include: { branch: true } }, schedules: true, _count: { select: { enrollments: { where: { status: "ACTIVE" } } } } },
     }),
   ]);
   const doneRows = await db.session.groupBy({ by: ["classId"], where: { status: "DONE", classId: { in: classes.map((c) => c.id) } }, _count: true });
@@ -35,16 +36,15 @@ export default async function Classes({ searchParams }: { searchParams: Promise<
   return (
     <div className="space-y-4">
       <Title right={<Link href="/lop-hoc/them" className="inline-flex h-9 items-center rounded-md bg-orange-600 px-4 text-sm font-medium text-white hover:bg-orange-700">+ Thêm lớp học</Link>}>Danh sách Lớp học ({total})</Title>
-      <form className="flex flex-wrap gap-2">
+      <AutoForm className="flex flex-wrap gap-2">
         <input type="hidden" name="v" value={v} />
         <input name="q" defaultValue={q} placeholder="Tìm lớp học..." className={inputCls + " min-w-48 flex-1"} />
         <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" name="all" value="1" defaultChecked={!!all} /> Gồm lớp đã kết thúc</label>
-        <button className="h-9 rounded-md border bg-white px-4 text-sm">Tìm</button>
         <div className="flex overflow-hidden rounded-md border bg-white text-sm">
           <Link href={href({ v: "table" })} className={`inline-flex items-center gap-1 px-3 ${v !== "cards" ? "bg-orange-600 text-white" : "hover:bg-slate-50"}`}><Rows3 className="size-4" /> Bảng</Link>
           <Link href={href({ v: "cards" })} className={`inline-flex items-center gap-1 border-l px-3 ${v === "cards" ? "bg-orange-600 text-white" : "hover:bg-slate-50"}`}><LayoutGrid className="size-4" /> Thẻ</Link>
         </div>
-      </form>
+      </AutoForm>
 
       {v !== "cards" ? (
         <Table head={["Lớp", "Lịch học", "Tiến độ", "Học viên", "Trạng thái"]}>
@@ -55,7 +55,7 @@ export default async function Classes({ searchParams }: { searchParams: Promise<
                 <td className="min-w-48">
                   <Link data-row href={`/lop-hoc/${c.id}`} className="text-base font-semibold text-orange-700 hover:underline">{c.name}</Link>
                   <div className="mt-1 text-[13px] text-slate-600">GV: <span className="font-medium" style={{ color: "var(--fg)" }}>{c.teacher?.fullName ?? "chưa có"}</span></div>
-                  <div className="text-[13px] text-slate-600">Phòng: <span className="font-medium" style={{ color: "var(--fg)" }}>{c.room?.name ?? "chưa có"}</span>{c.mode === "ONLINE" ? " · Online" : ""}</div>
+                  <div className="text-[13px] text-slate-600">Phòng: <span className="font-medium" style={{ color: "var(--fg)" }}>{roomLabel(c.room) ?? "chưa có"}</span>{c.mode === "ONLINE" ? " · Online" : ""}</div>
                 </td>
                 <td className="min-w-44"><ScheduleChips list={c.schedules} /></td>
                 <td className="min-w-48">
@@ -82,7 +82,7 @@ export default async function Classes({ searchParams }: { searchParams: Promise<
                 <Card className="flex h-full flex-col gap-3 transition-colors hover:border-orange-400">
                   <div className="flex items-start justify-between gap-2"><div className="text-base font-semibold">{c.name}</div>{status(c.finished)}</div>
                   <ScheduleChips list={c.schedules} />
-                  <div className="text-sm text-slate-600">GV: <b>{c.teacher?.fullName ?? "-"}</b> · Phòng: <b>{c.room?.name ?? "-"}</b></div>
+                  <div className="text-sm text-slate-600">GV: <b>{c.teacher?.fullName ?? "-"}</b> · Phòng: <b>{roomLabel(c.room) ?? "-"}</b></div>
                   <div className="mt-auto space-y-2 border-t pt-3">
                     <div><div className="flex justify-between text-xs"><span>Tiến độ <b>{d}/{c.totalSessions}</b> buổi</span><span className="text-slate-500">{fmtDate(c.endDate)}</span></div><div className="mt-1"><Bar value={d} max={c.totalSessions} /></div></div>
                     <div><div className="flex justify-between text-xs"><span>Học viên <b>{n}/{c.maxStudents}</b></span></div><div className="mt-1"><Bar value={n} max={c.maxStudents} tone={n >= c.maxStudents ? "bg-red-500" : "bg-sky-500"} /></div></div>

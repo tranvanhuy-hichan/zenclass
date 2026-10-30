@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { ViewToggle, pickView } from "@/components/view-toggle";
+import { AutoForm } from "@/components/auto-form";
 import { notFound } from "next/navigation";
 import { BookOpen, CalendarCheck, Mail, Phone, Users } from "lucide-react";
 import { db } from "@/lib/db";
@@ -9,7 +11,7 @@ import { Pagination } from "@/components/pagination";
 import { StaffFields } from "@/components/person-fields";
 import { ScheduleChips } from "@/components/schedule-chips";
 import { getPaging } from "@/lib/paging";
-import { WEEKDAYS, addDays, fmtDate, fmtMoney, isoDate, todayUTC } from "@/lib/format";
+import { WEEKDAYS, addDays, fmtDate, fmtMoney, isoDate, todayUTC, roomLabel } from "@/lib/format";
 import { KINDS, repo, type Kind } from "@/server/people";
 import * as AA from "@/app/(app)/tro-giang/actions";
 import * as CA from "@/app/(app)/giao-vu/actions";
@@ -19,7 +21,7 @@ const actionsOf = (kind: Kind) => kind === "assistant"
   ? { create: AA.createAssistant, update: AA.updateAssistant, remove: AA.deleteAssistant, reset: AA.resetAssistantPassword }
   : { create: CA.createCoordinator, update: CA.updateCoordinator, remove: CA.deleteCoordinator, reset: CA.resetCoordinatorPassword };
 
-type SP = { q?: string; page?: string; size?: string; tab?: string };
+type SP = { q?: string; page?: string; size?: string; tab?: string; v?: string };
 const btn = "inline-flex h-9 items-center rounded-md bg-orange-600 px-4 text-sm font-medium text-white hover:bg-orange-700";
 
 /* ===================== Danh sách (thẻ) ===================== */
@@ -28,6 +30,7 @@ export async function PeopleList({ kind, searchParams }: { kind: Kind; searchPar
   const K = KINDS[kind];
   const sp = await searchParams;
   const { q } = sp;
+  const view = pickView(sp.v, "cards");
   const pg = getPaging(sp, 12);
   const where = q ? { OR: [{ fullName: { contains: q, mode: "insensitive" } }, { phone: { contains: q } }] } : {};
   const [total, list] = await Promise.all([
@@ -37,8 +40,8 @@ export async function PeopleList({ kind, searchParams }: { kind: Kind; searchPar
   return (
     <div className="space-y-4">
       <Title right={<Link href={`${K.base}/them`} className={btn}>+ Thêm {K.label.toLowerCase()}</Link>}>{K.label} ({total})</Title>
-      <p className="text-sm text-slate-500">{K.desc} Quản lý tách biệt với giáo viên.</p>
-      <form className="flex gap-2"><input name="q" defaultValue={q} placeholder="Tìm theo tên, SĐT..." className={inputCls + " flex-1"} /><button className="h-9 rounded-md border bg-white px-4 text-sm">Tìm</button></form>
+      <AutoForm className="flex gap-2"><input type="hidden" name="v" value={view} /><input name="q" defaultValue={q} placeholder="Tìm theo tên, SĐT..." className={inputCls + " flex-1"} /><ViewToggle path={K.base} params={{ q, size: sp.size }} view={view} /></AutoForm>
+      {view === "cards" ? (
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         {list.map((p: any) => (
           <Link key={p.id} href={`${K.base}/${p.id}`}>
@@ -64,7 +67,20 @@ export async function PeopleList({ kind, searchParams }: { kind: Kind; searchPar
         ))}
         {!list.length && <p className="text-sm text-slate-500">Chưa có {K.label.toLowerCase()}.</p>}
       </div>
-      <Pagination total={total} page={pg.page} size={pg.size} path={K.base} params={{ q, size: sp.size }} />
+      ) : (
+        <Table head={[K.label, kind === "assistant" ? "Chuyên môn" : "Chức vụ", "Điện thoại", "Email", "Phụ trách", ...(me.role === "ADMIN" ? [kind === "assistant" ? "Mức lương" : "Lương tháng"] : [])]}>
+          {list.map((p: any) => (
+            <tr key={p.id} className="align-middle [&>td]:!py-3">
+              <td><Link data-row href={`${K.base}/${p.id}`} className="font-semibold text-orange-700 hover:underline">{p.fullName}</Link></td>
+              <td>{(kind === "assistant" ? p.specialty : p.position) ?? "-"}</td><td>{p.phone ?? "-"}</td><td className="max-w-48 truncate">{p.email ?? "-"}</td>
+              <td>{p._count.classes} lớp</td>
+              {me.role === "ADMIN" && <td className="tabular-nums">{fmtMoney(kind === "assistant" ? p.payRate : p.salary)}</td>}
+            </tr>
+          ))}
+          {!list.length && <tr><td colSpan={6} className="py-8 text-center text-slate-500">Chưa có {K.label.toLowerCase()}.</td></tr>}
+        </Table>
+      )}
+      <Pagination total={total} page={pg.page} size={pg.size} path={K.base} params={{ q, size: sp.size, v: sp.v }} />
     </div>
   );
 }
@@ -100,7 +116,7 @@ export async function PeopleDetail({ kind, id, searchParams }: { kind: Kind; id:
     db.class.findMany({ where: { [key]: id, finished: false }, include: { schedules: true, teacher: true, _count: { select: { enrollments: { where: { status: "ACTIVE" } } } } }, orderBy: { name: "asc" } }),
     db.enrollment.count({ where: { status: "ACTIVE", class: { [key]: id, finished: false } } }),
     db.session.count({ where: { class: { [key]: id }, status: { not: "CANCELLED" }, date: { gte: today, lte: addDays(today, 6) } } }),
-    db.session.findMany({ where: { class: { [key]: id }, status: "PLANNED", date: { gte: today } }, orderBy: [{ date: "asc" }, { startTime: "asc" }], take: 5, include: { class: true, room: true } }),
+    db.session.findMany({ where: { class: { [key]: id }, status: "PLANNED", date: { gte: today } }, orderBy: [{ date: "asc" }, { startTime: "asc" }], take: 5, include: { class: true, room: { include: { branch: true } } } }),
   ]);
   const Stat = ({ icon: I, label, value, tone = "bg-orange-100 text-orange-700" }: { icon: typeof Users; label: string; value: React.ReactNode; tone?: string }) => (
     <Card className="flex items-center gap-3 p-4"><span className={`grid size-10 shrink-0 place-items-center rounded-lg ${tone}`}><I className="size-5" /></span><div className="min-w-0"><div className="truncate text-xs text-slate-500">{label}</div><div className="truncate text-xl font-bold">{value}</div></div></Card>
@@ -144,7 +160,7 @@ export async function PeopleDetail({ kind, id, searchParams }: { kind: Kind; id:
             <Card className="p-0">
               <div className="border-b px-4 py-3"><h2 className="font-semibold">Buổi học sắp tới của các lớp</h2></div>
               <ul className="divide-y text-sm">
-                {upcoming.map((s) => <li key={s.id} className="px-4 py-2.5"><b>{WEEKDAYS[s.date.getUTCDay()]} {fmtDate(s.date)}</b> · {s.startTime}-{s.endTime}<div className="text-xs text-slate-500">{s.class.name}{s.room ? ` · ${s.room.name}` : ""}</div></li>)}
+                {upcoming.map((s) => <li key={s.id} className="px-4 py-2.5"><b>{WEEKDAYS[s.date.getUTCDay()]} {fmtDate(s.date)}</b> · {s.startTime}-{s.endTime}<div className="text-xs text-slate-500">{s.class.name}{s.room ? ` · ${roomLabel(s.room)}` : ""}</div></li>)}
                 {!upcoming.length && <li className="px-4 py-8 text-center text-slate-500">Không có buổi nào sắp tới.</li>}
               </ul>
             </Card>
@@ -162,7 +178,7 @@ export async function PeopleDetail({ kind, id, searchParams }: { kind: Kind; id:
       {tab === "classes" && await (async () => {
         const [total, list] = await Promise.all([
           db.class.count({ where: { [key]: id } }),
-          db.class.findMany({ where: { [key]: id }, orderBy: { name: "asc" }, skip: pg.skip, take: pg.take, include: { schedules: true, teacher: true, room: true, _count: { select: { enrollments: { where: { status: "ACTIVE" } } } } } }),
+          db.class.findMany({ where: { [key]: id }, orderBy: { name: "asc" }, skip: pg.skip, take: pg.take, include: { schedules: true, teacher: true, room: { include: { branch: true } }, _count: { select: { enrollments: { where: { status: "ACTIVE" } } } } } }),
         ]);
         return (
           <div className="space-y-3">
@@ -170,7 +186,7 @@ export async function PeopleDetail({ kind, id, searchParams }: { kind: Kind; id:
               {list.map((c) => (
                 <tr key={c.id} className="align-top">
                   <td><Link data-row href={`/lop-hoc/${c.id}`} className="font-medium text-orange-700 hover:underline">{c.name}</Link></td>
-                  <td>{c.teacher?.fullName ?? "-"}</td><td><ScheduleChips list={c.schedules} /></td><td>{c.room?.name ?? "-"}</td><td>{c._count.enrollments}/{c.maxStudents}</td>
+                  <td>{c.teacher?.fullName ?? "-"}</td><td><ScheduleChips list={c.schedules} /></td><td>{roomLabel(c.room) ?? "-"}</td><td>{c._count.enrollments}/{c.maxStudents}</td>
                   <td>{c.finished ? <span className="rounded bg-slate-200 px-2 py-0.5 text-xs">Đã kết thúc</span> : <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-800">Đang mở</span>}</td>
                 </tr>
               ))}

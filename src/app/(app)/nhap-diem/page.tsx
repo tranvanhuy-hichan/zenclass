@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AutoForm } from "@/components/auto-form";
 import { BarChart3, ClipboardCheck, Percent, Users } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireRole, teachingIds } from "@/lib/guard";
@@ -39,13 +40,12 @@ export default async function GradeEntry({ searchParams }: { searchParams: Promi
         const page = stats.slice(pg.skip, pg.skip + pg.take);
         return (
           <div className="space-y-3">
-            <form className="flex flex-wrap items-end gap-2">
+            <AutoForm className="flex flex-wrap items-end gap-2">
               <input type="hidden" name="tab" value="classes" />
               <input name="q" defaultValue={sp.q} placeholder="Tìm lớp..." className={inputCls + " min-w-48 flex-1"} />
               <select name="templateId" defaultValue={sp.templateId ?? ""} className={inputCls}><option value="">Tất cả bộ điểm</option>{templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
               <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" name="all" value="1" defaultChecked={!!sp.all} /> Gồm lớp đã kết thúc</label>
-              <button className="h-9 rounded-md border bg-white px-4 text-sm">Lọc</button>
-            </form>
+            </AutoForm>
             <p className="text-sm text-slate-500">Bấm vào một lớp để mở bảng nhập điểm cả lớp (nhập trực tiếp, tổng điểm tự tính).</p>
             <Table head={["Lớp", "Bộ điểm", "Học viên", "Tiến độ nhập điểm", "Điểm TB (thang 10)", ""]}>
               {page.map((c) => {
@@ -97,12 +97,11 @@ export default async function GradeEntry({ searchParams }: { searchParams: Promi
         return (
           <div className="space-y-4">
             <Card className="p-3">
-              <form className="flex flex-wrap items-end gap-3">
+              <AutoForm className="flex flex-wrap items-end gap-3">
                 <input type="hidden" name="tab" value="stats" />
                 <Field label="Lớp"><select name="classId" defaultValue={sp.classId ?? ""} className={inputCls}><option value="">Tất cả lớp</option>{stats.filter((c) => c.templateId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
                 <Field label="Bộ điểm"><select name="templateId" defaultValue={sp.templateId ?? ""} className={inputCls}><option value="">Tất cả</option>{templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></Field>
-                <button className="h-9 rounded-md bg-orange-600 px-4 text-sm font-medium text-white hover:bg-orange-700">Xem thống kê</button>
-              </form>
+              </AutoForm>
             </Card>
 
             <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">

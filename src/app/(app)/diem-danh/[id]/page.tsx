@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/guard";
 import { ActionForm } from "@/components/action-form";
 import { Card, Title } from "@/components/ui";
-import { WEEKDAYS, fmtDate } from "@/lib/format";
+import { WEEKDAYS, fmtDate, roomLabel } from "@/lib/format";
 import { saveAttendance } from "../actions";
 
 const OPTS: [string, string, string][] = [
@@ -19,7 +19,7 @@ export default async function AttendancePage({ params }: { params: Promise<{ id:
   const { id } = await params;
   const s = await db.session.findUnique({
     where: { id },
-    include: { class: { include: { enrollments: { where: { status: "ACTIVE" }, include: { student: true } } } }, attendances: { include: { student: true } }, teacher: true, room: true },
+    include: { class: { include: { enrollments: { where: { status: "ACTIVE" }, include: { student: true } } } }, attendances: { include: { student: true } }, teacher: true, room: { include: { branch: true } } },
   });
   if (!s) notFound();
   const map = new Map(s.attendances.map((a) => [a.studentId, a]));
@@ -32,7 +32,7 @@ export default async function AttendancePage({ params }: { params: Promise<{ id:
     <div className="space-y-4">
       <Title right={<Link href="/" className="text-sm underline">← Quay lại</Link>}>Điểm danh: {s.class.name}</Title>
       <div className="text-sm text-gray-600">
-        {WEEKDAYS[s.date.getUTCDay()]} {fmtDate(s.date)} · {s.startTime}-{s.endTime} · GV: {s.teacher?.fullName ?? "-"} · Phòng: {s.room?.name ?? "-"}
+        {WEEKDAYS[s.date.getUTCDay()]} {fmtDate(s.date)} · {s.startTime}-{s.endTime} · GV: {s.teacher?.fullName ?? "-"} · Phòng: {roomLabel(s.room) ?? "-"}
         {s.status === "CANCELLED" && <b className="text-red-600"> · BUỔI NGHỈ</b>}
       </div>
       <Card>

@@ -64,3 +64,19 @@ export function moneyToWords(n: number) {
   const s = parts.join(" ");
   return s.charAt(0).toUpperCase() + s.slice(1) + " đồng";
 }
+
+/** Giờ hiện tại theo múi giờ Việt Nam, dạng "thời điểm giả UTC" để so sánh với date + giờ buổi học. */
+export function nowVN() {
+  return new Date(Date.now() + 7 * 3600_000);
+}
+/** Buổi học (ngày UTC + giờ kết thúc "HH:MM") đã kết thúc chưa? */
+export function sessionEnded(date: Date, endTime: string, now = nowVN()) {
+  const [h, m] = endTime.split(":").map(Number);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), h, m) < now.getTime();
+}
+
+/** "P101 · Cầu Giấy" — tên phòng kèm cơ sở (bỏ tiền tố "Cơ sở"). */
+export function roomLabel(r: { name: string; branch?: { name: string } | null } | null | undefined) {
+  if (!r) return null;
+  return r.branch ? `${r.name} · ${r.branch.name.replace(/^Cơ sở\s+/i, "")}` : r.name;
+}

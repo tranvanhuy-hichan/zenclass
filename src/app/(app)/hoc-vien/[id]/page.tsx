@@ -46,7 +46,7 @@ export default async function StudentDetail({ params, searchParams }: { params: 
   const rate = totalAtt ? Math.round((present / totalAtt) * 100) : null;
   const debt = invoices.reduce((n, i) => n + i.total - i.paid, 0);
   const remain = row.remain;
-  const upcoming = pending.length ? await db.session.findMany({ where: { status: "PLANNED", date: { gte: todayUTC() } }, orderBy: [{ date: "asc" }, { startTime: "asc" }], take: 80, include: { class: true } }) : [];
+  const upcoming = pending.length ? await db.session.findMany({ where: { status: "PLANNED", date: { gte: todayUTC() } }, orderBy: [{ date: "asc" }, { startTime: "asc" }], take: 300, include: { class: true } }) : [];
   const ap = getPaging({ size: sp.size, page: sp.ap }, 15);
 
   const Stat = ({ icon: I, label, value, tone = "bg-orange-100 text-orange-700", vt = "" }: { icon: typeof Phone; label: string; value: React.ReactNode; tone?: string; vt?: string }) => (
@@ -119,7 +119,7 @@ export default async function StudentDetail({ params, searchParams }: { params: 
                     <span className="min-w-52">{p.session.class.name} · {fmtDate(p.session.date)} →</span>
                     <select name="sessionId" className={inputCls + " min-w-64"}>
                       <option value="">chọn buổi học bù...</option>
-                      {upcoming.map((u) => <option key={u.id} value={u.id}>{fmtDate(u.date)} {u.startTime} · {u.class.name}</option>)}
+                      {upcoming.filter((u) => u.class.courseId && u.class.courseId === p.session.class.courseId).map((u) => <option key={u.id} value={u.id}>{fmtDate(u.date)} {u.startTime} · {u.class.name}</option>)}
                     </select>
                   </ActionForm>
                 ))}

@@ -1,12 +1,13 @@
 import Link from "next/link";
-import { CalendarDays, ChevronLeft, ChevronRight, LayoutList, Rows3, CalendarRange, Table2 } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Clock, DoorOpen, LayoutList, Table2, User, Users } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireRole, teachingIds } from "@/lib/guard";
 import { portalKids } from "@/server/portal";
+import { AutoForm } from "@/components/auto-form";
 import { ActionForm } from "@/components/action-form";
 import { DialogTrigger } from "@/components/dialog";
 import { Field, inputCls, Title } from "@/components/ui";
-import { WEEKDAYS, addDays, fmtDate, isoDate, mondayOf, parseDate, todayUTC, toMinutes } from "@/lib/format";
+import { WEEKDAYS, addDays, fmtDate, isoDate, mondayOf, parseDate, sessionEnded, todayUTC, toMinutes, roomLabel } from "@/lib/format";
 import { updateSession, cancelSession } from "../lop-hoc/actions";
 
 const hue = (id: string) => { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
@@ -15,7 +16,7 @@ type S = Awaited<ReturnType<typeof load>>[number];
 async function load(where: object, kidId?: string) {
   return db.session.findMany({
     where, orderBy: [{ date: "asc" }, { startTime: "asc" }],
-    include: { class: { include: { _count: { select: { enrollments: { where: { status: "ACTIVE" } } } } } }, teacher: true, room: true, attendances: kidId ? { where: { studentId: kidId } } : false },
+    include: { class: { include: { _count: { select: { enrollments: { where: { status: "ACTIVE" } } } } } }, teacher: true, room: { include: { branch: true } }, attendances: kidId ? { where: { studentId: kidId } } : false },
   });
 }
 
@@ -43,119 +44,127 @@ function lanes(list: S[]) {
   return out;
 }
 
-export default async function Schedule({ searchParams }: { searchParams: Promise<{ w?: string; by?: string; f?: string; view?: string; z?: string; child?: string }> }) {
+export default async function Schedule({ searchParams }: { searchParams: Promise<{ w?: string; branch?: string; class?: string; teacher?: string; room?: string; view?: string; child?: string; scope?: string }> }) {
   const me = await requireRole("ADMIN", "STAFF", "TEACHER", "STUDENT", "PARENT");
-  const { w, by = "all", f = "", view = "matrix", z = "compact", child } = await searchParams;
+  const sp = await searchParams;
+  const { w, child } = sp;
+  const view = sp.view === "list" ? "list" : "matrix";
+  const fBranch = sp.branch ?? "", fClass = sp.class ?? "", fTeacher = sp.teacher ?? "", fRoom = sp.room ?? "";
   const isLearner = me.role === "STUDENT" || me.role === "PARENT";
   const portal = isLearner ? await portalKids(me, child) : null;
-  const compact = z === "compact";
-  const PPM = compact ? 0.95 : 1.5; // px mỗi phút
-  const LANE = compact ? 96 : 132;
   const staff = me.role === "ADMIN" || me.role === "STAFF";
   const today = todayUTC();
   const base = w && /^\d{4}-\d{2}-\d{2}$/.test(w) ? parseDate(w) : today;
 
-  let start: Date, end: Date, step: (n: number) => Date, label: string;
-  if (view === "month") {
-    const first = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), 1));
-    start = mondayOf(first);
-    const last = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + 1, 0));
-    end = addDays(mondayOf(last), 6);
-    step = (n) => new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + n, 1));
-    label = `Tháng ${base.getUTCMonth() + 1}/${base.getUTCFullYear()}`;
-  } else if (view === "day") {
-    start = base; end = base; step = (n) => addDays(base, n);
-    label = `${WEEKDAYS[base.getUTCDay()]}, ${fmtDate(base)}`;
-  } else {
-    start = mondayOf(base); end = addDays(start, 6); step = (n) => addDays(start, 7 * n);
-    label = `${fmtDate(start)} - ${fmtDate(end)}`;
-  }
+  const start = mondayOf(base), end = addDays(start, 6);
+  const step = (n: number) => addDays(start, 7 * n);
+  const label = `${fmtDate(start)} - ${fmtDate(end)}`;
 
-  const mine = me.role === "TEACHER" ? await teachingIds(me.id) : null;
+  const prof = me.role === "TEACHER" || me.role === "STAFF" ? await teachingIds(me.id) : null;
+  const hasMine = !!(prof && (prof.teacherId || prof.assistantId || prof.coordinatorId));
+  const scope = hasMine && sp.scope !== "all" ? "mine" : "all";
+  const canFilter = me.role === "ADMIN" || me.role === "STAFF" || me.role === "TEACHER";
+  const mineOr = prof ? [
+    ...(prof.teacherId ? [{ teacherId: prof.teacherId }] : []),
+    ...(prof.assistantId ? [{ class: { assistantId: prof.assistantId } }] : []),
+    ...(prof.coordinatorId ? [{ class: { coordinatorId: prof.coordinatorId } }] : []),
+  ] : [];
+  const isMine = (s: { teacherId: string | null; class: { assistantId?: string | null; coordinatorId?: string | null } }) =>
+    !!prof && ((!!prof.teacherId && s.teacherId === prof.teacherId) || (!!prof.assistantId && s.class.assistantId === prof.assistantId) || (!!prof.coordinatorId && s.class.coordinatorId === prof.coordinatorId));
   const where: Record<string, unknown> = { date: { gte: start, lte: end } };
   if (isLearner) {
     if (!portal?.kid) where.id = "-";
     else where.OR = [{ class: { enrollments: { some: { studentId: portal.kid.id, status: { in: ["ACTIVE", "PAUSED", "FINISHED"] } } } } }, { attendances: { some: { studentId: portal.kid.id } } }];
-  } else if (mine) where.OR = [{ teacherId: mine.teacherId ?? "-" }, { class: { assistantId: mine.assistantId ?? "-" } }];
-  else if (f) { if (by === "class") where.classId = f; if (by === "teacher") where.teacherId = f; if (by === "room") where.roomId = f; }
-  const [sessions, classes, teachers, rooms] = await Promise.all([
+  } else {
+    if (scope === "mine") where.OR = mineOr;
+    if (fClass) where.classId = fClass;
+    if (fTeacher) where.teacherId = fTeacher;
+    if (fRoom) where.roomId = fRoom;
+    else if (fBranch) where.room = { branchId: fBranch };
+  }
+  const [sessions, classes, teachers, rooms, branches] = await Promise.all([
     load(where, portal?.kid?.id),
-    db.class.findMany({ where: { finished: false }, orderBy: { name: "asc" } }),
-    db.teacher.findMany({ orderBy: { fullName: "asc" } }),
-    db.room.findMany({ orderBy: { name: "asc" } }),
+    db.class.findMany({ where: { finished: false, ...(fBranch ? { room: { branchId: fBranch } } : {}) }, orderBy: { name: "asc" } }),
+    db.teacher.findMany({ where: fBranch ? { classes: { some: { room: { branchId: fBranch } } } } : {}, orderBy: { fullName: "asc" } }),
+    db.room.findMany({ where: fBranch ? { branchId: fBranch } : {}, orderBy: { name: "asc" }, include: { branch: true } }),
+    db.branch.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
   ]);
 
-  const q = (o: Record<string, string>) => `?${new URLSearchParams({ by, f, view, z, w: isoDate(base), ...(portal?.kid ? { child: portal.kid.id } : {}), ...o })}`;
-  const opts = by === "class" ? classes : by === "teacher" ? teachers : by === "room" ? rooms : [];
-  const days = view === "month" ? Array.from({ length: Math.round((end.getTime() - start.getTime()) / 86400000) + 1 }, (_, i) => addDays(start, i)) : view === "day" ? [start] : Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  const q = (o: Record<string, string>) => `?${new URLSearchParams({ view, w: isoDate(base), ...(fBranch ? { branch: fBranch } : {}), ...(fClass ? { class: fClass } : {}), ...(fTeacher ? { teacher: fTeacher } : {}), ...(fRoom ? { room: fRoom } : {}), ...(hasMine ? { scope } : {}), ...(portal?.kid ? { child: portal.kid.id } : {}), ...o })}`;
+  const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
 
   // ---- chi tiết một buổi (dùng trong hộp thoại)
-  const Detail = ({ s }: { s: S }) => (
-    <div className="space-y-3 text-sm">
-      <div className="grid grid-cols-2 gap-2">
-        <div><div className="text-xs text-slate-500">Lớp</div><b>{s.class.name}</b></div>
-        <div><div className="text-xs text-slate-500">Thời gian</div><b>{WEEKDAYS[s.date.getUTCDay()]} {fmtDate(s.date)} · {s.startTime}-{s.endTime}</b></div>
-        <div><div className="text-xs text-slate-500">Giáo viên</div>{s.teacher?.fullName ?? "-"}{s.originalTeacherId && <span className="ml-1 rounded bg-sky-100 px-1.5 py-0.5 text-[11px] text-sky-700">Dạy thế</span>}</div>
-        <div><div className="text-xs text-slate-500">Phòng</div>{s.room?.name ?? "Chưa có"}</div>
-        {!isLearner && <div><div className="text-xs text-slate-500">Học viên</div>{s.class._count.enrollments}</div>}
-        {isLearner && portal?.kid && <div><div className="text-xs text-slate-500">Điểm danh của {portal.kid.fullName.split(" ").pop()}</div>{({ PRESENT: "Có mặt", LATE: "Đi muộn", ABSENT_EXCUSED: "Vắng có phép", ABSENT: "Vắng", PENDING: "Học bù (chờ)" } as Record<string, string>)[(s as unknown as { attendances?: { status: string }[] }).attendances?.[0]?.status ?? ""] ?? (s.status === "PLANNED" ? "Chưa học" : "-")}</div>}
-        <div><div className="text-xs text-slate-500">Trạng thái</div>{{ PLANNED: "Chưa dạy", DONE: "Đã điểm danh", CANCELLED: "Nghỉ" }[s.status]}</div>
-      </div>
-      {!isLearner && s.status !== "CANCELLED" && <Link href={`/diem-danh/${s.id}`} className="inline-flex h-9 items-center rounded-md bg-orange-600 px-4 font-medium text-white hover:bg-orange-700">Điểm danh</Link>}
-      {staff && s.status === "PLANNED" && (
-        <div className="space-y-3 border-t pt-3">
-          <div className="font-medium">Đổi lịch buổi này</div>
-          <ActionForm action={updateSession} submit="Lưu thay đổi" reset={false} className="grid grid-cols-2 gap-3 [&>button]:justify-self-start">
-            <input type="hidden" name="id" value={s.id} />
-            <Field label="Ngày"><input type="date" name="date" defaultValue={isoDate(s.date)} className={inputCls + " w-full"} /></Field>
-            <div className="grid grid-cols-2 gap-2"><Field label="Từ"><input type="time" name="startTime" defaultValue={s.startTime} className={inputCls + " w-full"} /></Field><Field label="Đến"><input type="time" name="endTime" defaultValue={s.endTime} className={inputCls + " w-full"} /></Field></div>
-            <Field label="Giáo viên"><select name="teacherId" defaultValue={s.teacherId ?? ""} className={inputCls + " w-full"}><option value="">--</option>{teachers.map((t) => <option key={t.id} value={t.id}>{t.fullName}</option>)}</select></Field>
-            <Field label="Phòng"><select name="roomId" defaultValue={s.roomId ?? ""} className={inputCls + " w-full"}><option value="">--</option>{rooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select></Field>
-          </ActionForm>
-          <ActionForm action={cancelSession} submit="Cho lớp nghỉ buổi này" danger confirmText="Cho lớp nghỉ buổi này? Học viên sẽ được báo." className="inline-flex"><input type="hidden" name="id" value={s.id} /></ActionForm>
+  const STATUS_BADGE = { PLANNED: ["Chưa dạy", "bg-slate-100 text-slate-600"], DONE: ["Đã điểm danh", "bg-green-100 text-green-800"], CANCELLED: ["Lớp nghỉ", "bg-red-100 text-red-600"] } as const;
+  const ATT_LABEL: Record<string, string> = { PRESENT: "Có mặt", LATE: "Đi muộn", ABSENT_EXCUSED: "Vắng có phép", ABSENT: "Vắng", PENDING: "Học bù (chờ)" };
+  const Detail = ({ s }: { s: S }) => {
+    const [stLabel, stTone] = STATUS_BADGE[s.status];
+    const myAtt = (s as unknown as { attendances?: { status: string }[] }).attendances?.[0]?.status;
+    const Row = ({ icon: I, label, children }: { icon: typeof Clock; label: string; children: React.ReactNode }) => (
+      <div className="flex items-start gap-3"><span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-md bg-orange-100 text-orange-700"><I className="size-4" /></span><div className="min-w-0"><div className="text-xs text-slate-500">{label}</div><div className="font-medium">{children}</div></div></div>
+    );
+    return (
+      <div className="space-y-4 text-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          {isOverdue(s) ? <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-600">Quá giờ, chưa điểm danh</span> : <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${stTone}`}>{stLabel}</span>}
+          {s.originalTeacherId && <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-700">Dạy thế</span>}
+          {s.class.mode === "ONLINE" && <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-600">Online</span>}
         </div>
-      )}
-    </div>
-  );
+        <div className="grid gap-4 rounded-lg bg-slate-50 p-4 sm:grid-cols-2">
+          <Row icon={CalendarDays} label="Ngày học">{WEEKDAYS[s.date.getUTCDay()]}, {fmtDate(s.date)}</Row>
+          <Row icon={Clock} label="Giờ học">{s.startTime} – {s.endTime}</Row>
+          <Row icon={User} label="Giáo viên">{s.teacher?.fullName ?? "Chưa có"}</Row>
+          <Row icon={DoorOpen} label="Phòng">{roomLabel(s.room) ?? "Chưa có"}</Row>
+          {!isLearner && <Row icon={Users} label="Học viên">{s.class._count.enrollments} học viên</Row>}
+          {isLearner && portal?.kid && <Row icon={Users} label={`Điểm danh của ${portal.kid.fullName.split(" ").pop()}`}>{(myAtt && ATT_LABEL[myAtt]) ?? (s.status === "PLANNED" ? "Chưa học" : "-")}</Row>}
+        </div>
+        {!isLearner && isOverdue(s) && (
+          <div className="space-y-2 rounded-lg border border-red-300/70 bg-red-50 p-3">
+            <div className="font-medium text-red-600">Buổi này đã qua giờ nhưng chưa được điểm danh cũng chưa cho nghỉ</div>
+            <ul className="list-disc pl-5 text-xs text-slate-600">
+              <li><b>Buổi đã diễn ra:</b> bấm “Điểm danh bù” để ghi nhận. Chỉ buổi đã điểm danh mới được tính công cho giáo viên.</li>
+              <li><b>Buổi không diễn ra:</b> mở mục “Đổi lịch / Cho lớp nghỉ” bên dưới và bấm “Cho nghỉ”, buổi sẽ được lùi về cuối khoá.</li>
+            </ul>
+          </div>
+        )}
+        {!isLearner && s.status !== "CANCELLED" && (staff || isMine(s)) && (
+          <Link href={`/diem-danh/${s.id}`} className="inline-flex h-9 items-center rounded-md bg-orange-600 px-4 font-medium text-white hover:bg-orange-700">{isOverdue(s) ? "Điểm danh bù" : "Mở điểm danh"}</Link>
+        )}
+        {staff && s.status === "PLANNED" && (
+          <details className="group border-t pt-3">
+            <summary className="flex cursor-pointer list-none items-center justify-between rounded-md px-1 py-1.5 font-semibold hover:bg-slate-50">
+              <span>Đổi lịch / Cho lớp nghỉ</span>
+              <ChevronDown className="size-4 text-slate-500 transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="mt-3 space-y-4">
+            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Đổi lịch buổi này</div>
+            <ActionForm action={updateSession} submit="Lưu thay đổi" reset={false} className="grid grid-cols-6 gap-3 [&>button]:col-span-6 [&>button]:!justify-self-end">
+              <input type="hidden" name="id" value={s.id} />
+              <div className="col-span-6 sm:col-span-2"><Field label="Ngày"><input type="date" name="date" defaultValue={isoDate(s.date)} className={inputCls + " w-full"} /></Field></div>
+              <div className="col-span-3 sm:col-span-2"><Field label="Từ giờ"><input type="time" name="startTime" defaultValue={s.startTime} className={inputCls + " w-full"} /></Field></div>
+              <div className="col-span-3 sm:col-span-2"><Field label="Đến giờ"><input type="time" name="endTime" defaultValue={s.endTime} className={inputCls + " w-full"} /></Field></div>
+              <div className="col-span-6 sm:col-span-3"><Field label="Giáo viên"><select name="teacherId" defaultValue={s.teacherId ?? ""} className={inputCls + " w-full"}><option value="">-- chưa có --</option>{teachers.map((t) => <option key={t.id} value={t.id}>{t.fullName}</option>)}</select></Field></div>
+              <div className="col-span-6 sm:col-span-3"><Field label="Phòng"><select name="roomId" defaultValue={s.roomId ?? ""} className={inputCls + " w-full"}><option value="">-- chưa có --</option>{rooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select></Field></div>
+            </ActionForm>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-300/70 bg-red-50 p-3">
+              <div><div className="font-medium text-red-600">Cho lớp nghỉ buổi này</div><div className="text-xs text-slate-600">Buổi được lùi về cuối khoá và học viên sẽ được báo.</div></div>
+              <ActionForm action={cancelSession} submit="Cho nghỉ" danger compact confirmText="Cho lớp nghỉ buổi này? Học viên sẽ được báo." className="inline-flex"><input type="hidden" name="id" value={s.id} /></ActionForm>
+            </div>
+            </div>
+          </details>
+        )}
+      </div>
+    );
+  };
+  const isOverdue = (s: S) => s.status === "PLANNED" && sessionEnded(s.date, s.endTime);
   const tone = (s: S) => {
     const h = hue(s.classId);
+    if (isOverdue(s)) return { background: "#fee2e2", borderLeft: "4px solid #dc2626", color: "#7f1d1d", outline: "1.5px dashed #dc2626", outlineOffset: "-2px" } as React.CSSProperties;
     return s.status === "CANCELLED"
       ? { background: "#f1f5f9", borderLeft: "4px solid #94a3b8", color: "#94a3b8" }
       : { background: `hsl(${h} 85% ${s.status === "DONE" ? 90 : 94}%)`, borderLeft: `4px solid hsl(${h} 65% 42%)`, color: `hsl(${h} 60% 18%)` };
   };
 
-  // ---- lưới giờ: chỉ hiện các khung giờ có buổi học, khoảng trống được nén lại
-  const used = new Set<number>();
-  for (const x of sessions) for (let h = Math.floor(toMinutes(x.startTime) / 60); h < Math.ceil(toMinutes(x.endTime) / 60); h++) used.add(h);
-  const vis = used.size ? [...used].sort((x, y) => x - y) : [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
-  const GAP = 26;
-  const hourTop = new Map<number, number>();
-  const gaps: { top: number; from: number; to: number }[] = [];
-  let acc = 0;
-  vis.forEach((h, i) => {
-    if (i > 0 && h !== vis[i - 1] + 1) { gaps.push({ top: acc, from: vis[i - 1] + 1, to: h }); acc += GAP; }
-    hourTop.set(h, acc); acc += 60 * PPM;
-  });
-  const gridH = acc;
-  const yOf = (min: number, isEnd = false) => {
-    let h = Math.floor(min / 60);
-    if (isEnd && min % 60 === 0 && !hourTop.has(h)) h -= 1, min = (h + 1) * 60;
-    const t = hourTop.get(h);
-    return t == null ? null : t + (min - h * 60) * PPM;
-  };
-  const perDay = days.map((d) => {
-    const list = sessions.filter((x) => x.date.getTime() === d.getTime());
-    const ln = lanes(list);
-    const of = Math.max(1, ...[...ln.values()].map((v) => v.of));
-    return { d, list, ln, of };
-  });
-  const colW = (of: number) => Math.max(view === "day" ? 300 : compact ? 130 : 170, of * LANE);
-  const template = `60px ${perDay.map((x) => `minmax(${colW(x.of)}px, ${x.of}fr)`).join(" ")}`;
-  const totalW = 60 + perDay.reduce((n, x) => n + colW(x.of), 0);
-  const nowVN = new Date(Date.now() + 7 * 3600_000);
-  const nowMin = nowVN.getUTCHours() * 60 + nowVN.getUTCMinutes();
-
-  const tab = (v: string, text: string, Icon: typeof Rows3) => (
+  const tab = (v: string, text: string, Icon: typeof Table2) => (
     <Link href={q({ view: v })} className={`inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm ${view === v ? "border-orange-600 bg-orange-600 text-white" : "bg-white hover:bg-slate-50"}`}><Icon className="size-4" />{text}</Link>
   );
 
@@ -172,21 +181,22 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        {tab("matrix", "Theo lớp", Table2)}{tab("grid", "Lưới giờ", Rows3)}{tab("list", "Danh sách", LayoutList)}{tab("month", "Tháng", CalendarRange)}{tab("day", "Ngày", CalendarDays)}
-        {(view === "grid" || view === "day") && (
-          <div className="flex overflow-hidden rounded-md border bg-white text-sm">
-            <Link href={q({ z: "compact" })} className={`px-3 py-2 ${compact ? "bg-orange-600 text-white" : "hover:bg-slate-50"}`}>Gọn</Link>
-            <Link href={q({ z: "wide" })} className={`border-l px-3 py-2 ${!compact ? "bg-orange-600 text-white" : "hover:bg-slate-50"}`}>Rộng</Link>
+        {hasMine && (
+          <div className="mr-2 flex overflow-hidden rounded-md border bg-white text-sm">
+            <Link href={q({ scope: "mine" })} className={`inline-flex h-9 items-center px-3 ${scope === "mine" ? "bg-orange-600 text-white" : "hover:bg-slate-50"}`}>Lịch của tôi</Link>
+            <Link href={q({ scope: "all" })} className={`inline-flex h-9 items-center border-l px-3 ${scope === "all" ? "bg-orange-600 text-white" : "hover:bg-slate-50"}`}>Tất cả</Link>
           </div>
         )}
-        {staff && (
-          <form className="ml-auto flex flex-wrap gap-2">
-            <input type="hidden" name="z" value={z} />
-            <input type="hidden" name="w" value={isoDate(base)} /><input type="hidden" name="view" value={view} />
-            <select name="by" defaultValue={by} className={inputCls}><option value="all">Tất cả</option><option value="class">Theo lớp</option><option value="teacher">Theo giáo viên</option><option value="room">Theo phòng</option></select>
-            {by !== "all" && <select name="f" defaultValue={f} className={inputCls}><option value="">-- tất cả --</option>{opts.map((o) => <option key={o.id} value={o.id}>{(o as { fullName?: string; name?: string }).fullName ?? (o as { name?: string }).name}</option>)}</select>}
-            <button className="h-9 rounded-md border bg-white px-4 text-sm">Xem</button>
-          </form>
+        {tab("matrix", "Theo lớp", Table2)}{tab("list", "Danh sách", LayoutList)}
+        {canFilter && (
+          <AutoForm className="ml-auto flex flex-wrap items-center gap-2" resets={{ branch: ["class", "room", "teacher"] }}>
+            <input type="hidden" name="view" value={view} /><input type="hidden" name="w" value={isoDate(base)} />{hasMine && <input type="hidden" name="scope" value={scope} />}
+            <select name="branch" defaultValue={fBranch} className={inputCls} aria-label="Cơ sở"><option value="">Tất cả cơ sở</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
+            <select name="room" defaultValue={fRoom} className={inputCls} aria-label="Phòng"><option value="">Tất cả phòng</option>{rooms.map((r) => <option key={r.id} value={r.id}>{fBranch ? r.name : roomLabel(r)}</option>)}</select>
+            <select name="class" defaultValue={fClass} className={inputCls} aria-label="Lớp"><option value="">Tất cả lớp</option>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+            <select name="teacher" defaultValue={fTeacher} className={inputCls} aria-label="Giáo viên"><option value="">Tất cả giáo viên</option>{teachers.map((t) => <option key={t.id} value={t.id}>{t.fullName}</option>)}</select>
+            {(fBranch || fRoom || fClass || fTeacher) && <Link href={`/lich-hoc?view=${view}&w=${isoDate(base)}${hasMine ? `&scope=${scope}` : ""}`} className="inline-flex h-9 items-center rounded-md px-2 text-sm text-slate-500 hover:text-orange-700">Xoá lọc</Link>}
+          </AutoForm>
         )}
       </div>
 
@@ -208,11 +218,11 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
                     const n = sessions.filter((x) => x.date.getTime() === d.getTime()).length;
                     return (
                       <th key={d.getTime()} className={`sticky top-0 z-20 border-b border-l px-1 py-1.5 text-center font-normal ${isToday ? "bg-orange-100" : "bg-slate-50"}`}>
-                        <Link href={q({ view: "day", w: isoDate(d) })} className="block hover:underline">
+                        <div className="block">
                           <div className="text-slate-500">{WEEKDAYS[d.getUTCDay()]}</div>
                           <div className={`text-base font-bold leading-tight ${isToday ? "text-orange-700" : ""}`}>{d.getUTCDate()}/{d.getUTCMonth() + 1}</div>
                           <div className="text-[11px] text-slate-500">{n} buổi</div>
-                        </Link>
+                        </div>
                       </th>
                     );
                   })}
@@ -225,7 +235,7 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
                     <tr key={c.id} className="border-t hover:bg-slate-50/60">
                       <td className="sticky left-0 z-10 border-r bg-white px-3 py-1.5 align-middle">
                         {staff ? <Link href={`/lop-hoc/${c.id}`} className="block truncate font-semibold hover:text-orange-700" title={c.name}>{c.name}</Link> : <span className="block truncate font-semibold" title={c.name}>{c.name}</span>}
-                        <div className="truncate text-[11px] text-slate-500">{any.teacher?.fullName ?? "-"} · {any.room?.name ?? "-"}</div>
+                        <div className="truncate text-[11px] text-slate-500">{any.teacher?.fullName ?? "-"} · {roomLabel(any.room) ?? "-"}</div>
                       </td>
                       {cols.map((d) => {
                         const list = byKey.get(`${c.id}|${d.getTime()}`) ?? [];
@@ -234,7 +244,7 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
                           <td key={d.getTime()} className={`border-l px-1 py-1 align-middle ${isToday ? "bg-orange-50/60" : ""}`}>
                             {list.map((x) => (
                               <DialogTrigger key={x.id} title={x.class.name} className="mb-0.5 block w-full rounded px-1.5 py-1 text-center text-xs font-medium tabular-nums last:mb-0" style={tone(x)}
-                                trigger={<span className={x.status === "CANCELLED" ? "line-through" : ""}>{x.startTime}–{x.endTime}{x.status === "DONE" ? " ✓" : ""}</span>}>
+                                trigger={<span className={x.status === "CANCELLED" ? "line-through" : ""}>{isOverdue(x) ? "⚠ " : ""}{x.startTime}–{x.endTime}{x.status === "DONE" ? " ✓" : ""}</span>}>
                                 <Detail s={x} />
                               </DialogTrigger>
                             ))}
@@ -250,64 +260,6 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
           </div>
         );
       })()}
-
-      {/* ===== LƯỚI GIỜ (tuần / ngày) ===== */}
-      {(view === "grid" || view === "day") && (
-        <div className="max-h-[calc(100vh-12rem)] overflow-auto rounded-lg border bg-white">
-          <div style={{ minWidth: totalW }}>
-            <div className="sticky top-0 z-30 grid border-b bg-slate-50" style={{ gridTemplateColumns: template }}>
-              <div className="sticky left-0 z-30 bg-slate-50" />
-              {perDay.map(({ d, list }) => {
-                const n = list.length;
-                const isToday = d.getTime() === today.getTime();
-                return (
-                  <Link key={d.getTime()} href={q({ view: "day", w: isoDate(d) })} className={`border-l px-2 py-2 text-center ${isToday ? "bg-orange-100" : "hover:bg-slate-100"}`}>
-                    <div className="text-xs text-slate-500">{WEEKDAYS[d.getUTCDay()]}</div>
-                    <div className={`text-lg font-bold leading-tight ${isToday ? "text-orange-700" : ""}`}>{d.getUTCDate()}</div>
-                    <div className="text-[11px] text-slate-500">{n} buổi</div>
-                  </Link>
-                );
-              })}
-            </div>
-            <div className="relative grid" style={{ gridTemplateColumns: template, height: gridH }}>
-              <div className="sticky left-0 z-20 bg-white">
-                {vis.map((h) => <div key={h} className="absolute right-2 text-xs text-slate-500" style={{ top: hourTop.get(h)! + 2 }}>{String(h).padStart(2, "0")}:00</div>)}
-                {gaps.map((g) => <div key={g.top} className="absolute right-2 text-[10px] text-slate-300" style={{ top: g.top + 6 }}>⋯</div>)}
-              </div>
-              {perDay.map(({ d, list, ln }) => {
-                const isToday = d.getTime() === today.getTime();
-                return (
-                  <div key={d.getTime()} className={`relative border-l ${isToday ? "bg-orange-50/50" : ""}`}>
-                    {vis.map((h) => <div key={h} className="absolute inset-x-0 border-t border-slate-100" style={{ top: hourTop.get(h)! }} />)}
-                    {gaps.map((g) => <div key={g.top} className="absolute inset-x-0 bg-slate-100/80" style={{ top: g.top, height: GAP }} title={`${g.from}:00 – ${g.to}:00 không có lớp`} />)}
-                    {isToday && yOf(nowMin) != null && <div className="absolute inset-x-0 z-10 border-t-2 border-red-500" style={{ top: yOf(nowMin)! }}><i className="absolute -left-1 -top-1.5 size-2.5 rounded-full bg-red-500" /></div>}
-                    {list.map((s) => {
-                      const L = ln.get(s.id)!;
-                      const top = yOf(toMinutes(s.startTime)) ?? 0;
-                      const h = Math.max((yOf(toMinutes(s.endTime), true) ?? top) - top, 28);
-                      return (
-                        <DialogTrigger
-                          key={s.id} title={s.class.name} trigger={
-                            <>
-                              <div className={`line-clamp-2 break-words text-sm font-semibold leading-snug ${s.status === "CANCELLED" ? "line-through" : ""}`}>{s.class.name}</div>
-                              <div className="truncate text-xs opacity-80">{s.startTime} - {s.endTime}{s.status === "DONE" ? " ✓" : ""}</div>
-                              {h > 62 && <div className="truncate text-xs opacity-80">{s.teacher?.fullName ?? ""}</div>}
-                              {h > 84 && <div className="truncate text-xs opacity-80">{s.room ? s.room.name : ""}{isLearner ? "" : ` · ${s.class._count.enrollments} HV`}</div>}
-                            </>
-                          }
-                          className="absolute overflow-hidden rounded-md px-1.5 py-1 text-left shadow-sm transition-shadow hover:shadow-md hover:ring-2 hover:ring-orange-400"
-                          style={{ top, height: h - 2, left: `calc(${(L.lane / L.of) * 100}% + 2px)`, width: `calc(${100 / L.of}% - 4px)`, ...tone(s) }}
-                        ><Detail s={s} /></DialogTrigger>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-              <div className="pointer-events-none absolute inset-x-0 bottom-0" />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ===== DANH SÁCH (tuần) ===== */}
       {view === "list" && (
@@ -325,7 +277,7 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
                   {list.map((s) => (
                     <li key={s.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5" style={{ borderLeft: `4px solid ${s.status === "CANCELLED" ? "#94a3b8" : `hsl(${hue(s.classId)} 65% 42%)`}` }}>
                       <div className="w-28 text-sm font-semibold tabular-nums">{s.startTime} – {s.endTime}</div>
-                      <div className="min-w-0 flex-1"><div className={`truncate font-medium ${s.status === "CANCELLED" ? "line-through text-slate-400" : ""}`}>{s.class.name}</div><div className="truncate text-xs text-slate-500">{s.teacher?.fullName ?? "Chưa có GV"} · {s.room?.name ?? "Chưa có phòng"} {isLearner ? "" : `· ${s.class._count.enrollments} HV`}</div></div>
+                      <div className="min-w-0 flex-1"><div className={`truncate font-medium ${s.status === "CANCELLED" ? "line-through text-slate-400" : ""}`}>{s.class.name}</div><div className="truncate text-xs text-slate-500">{s.teacher?.fullName ?? "Chưa có GV"} · {roomLabel(s.room) ?? "Chưa có phòng"} {isLearner ? "" : `· ${s.class._count.enrollments} HV`}</div></div>
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${s.status === "DONE" ? "bg-green-100 text-green-800" : s.status === "CANCELLED" ? "bg-red-100 text-red-600" : "bg-slate-100 text-slate-600"}`}>{{ PLANNED: "Chưa dạy", DONE: "Đã điểm danh", CANCELLED: "Nghỉ" }[s.status]}</span>
                       <DialogTrigger title={s.class.name} trigger="Chi tiết" className="h-8 rounded-md border bg-white px-3 text-sm hover:bg-slate-50"><Detail s={s} /></DialogTrigger>
                     </li>
@@ -335,33 +287,6 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
             );
           })}
           {!sessions.length && <p className="rounded-lg border bg-white py-10 text-center text-sm text-slate-500">Không có buổi học nào trong tuần này.</p>}
-        </div>
-      )}
-
-      {/* ===== THÁNG ===== */}
-      {view === "month" && (
-        <div className="max-h-[calc(100vh-12rem)] overflow-auto rounded-lg border bg-white">
-          <div className="min-w-[760px]">
-            <div className="sticky top-0 z-20 grid grid-cols-7 border-b bg-slate-50 text-center text-xs font-semibold text-slate-500">{["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "CN"].map((d) => <div key={d} className="py-2">{d}</div>)}</div>
-            <div className="grid grid-cols-7">
-              {days.map((d) => {
-                const list = sessions.filter((s) => s.date.getTime() === d.getTime());
-                const other = d.getUTCMonth() !== base.getUTCMonth();
-                const isToday = d.getTime() === today.getTime();
-                return (
-                  <div key={d.getTime()} className={`min-h-28 border-b border-l p-1.5 ${other ? "bg-slate-50/70 text-slate-400" : ""} ${isToday ? "bg-orange-50" : ""}`}>
-                    <Link href={q({ view: "day", w: isoDate(d) })} className={`mb-1 inline-flex size-6 items-center justify-center rounded-full text-xs font-semibold ${isToday ? "bg-orange-600 text-white" : "hover:bg-slate-200"}`}>{d.getUTCDate()}</Link>
-                    <div className="space-y-0.5">
-                      {list.slice(0, 3).map((s) => (
-                        <DialogTrigger key={s.id} title={s.class.name} trigger={<span className="block truncate">{s.startTime} {s.class.name}</span>} className="block w-full rounded px-1.5 py-0.5 text-left text-[11px]" style={tone(s)}><Detail s={s} /></DialogTrigger>
-                      ))}
-                      {list.length > 3 && <Link href={q({ view: "day", w: isoDate(d) })} className="block px-1 text-[11px] text-orange-700 hover:underline">+{list.length - 3} buổi nữa</Link>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
         </div>
       )}
     </div>

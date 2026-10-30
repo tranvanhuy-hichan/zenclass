@@ -7,7 +7,7 @@ import { ActionForm } from "@/components/action-form";
 import { Card, Field, inputCls, Table, Title } from "@/components/ui";
 import { Pagination } from "@/components/pagination";
 import { getPaging } from "@/lib/paging";
-import { fmtDate, fmtMoney } from "@/lib/format";
+import { fmtDate, fmtMoney, sessionEnded } from "@/lib/format";
 import { Landmark } from "lucide-react";
 import { computePay, monthRange, PAY_LABEL, sessionPay } from "@/server/payroll";
 import { lockPayroll, payPayroll, unlockPayroll } from "./actions";
@@ -36,6 +36,8 @@ export default async function Timesheet({ searchParams }: { searchParams: Promis
     db.session.findMany({ where: { status: "DONE", date: { gte: from, lt: to }, teacherId: { in: teachers.map((t) => t.id) } }, include: { class: { select: { name: true, teacherRate: true } } }, orderBy: [{ date: "asc" }, { startTime: "asc" }] }),
     db.payroll.findMany({ where: { month: m } }),
   ]);
+  // buổi đã qua giờ nhưng chưa điểm danh: chưa được tính công
+  const stale = (await db.session.findMany({ where: { status: "PLANNED", date: { gte: from, lt: to }, teacherId: { in: teachers.map((t) => t.id) } }, select: { teacherId: true, date: true, endTime: true } })).filter((x) => sessionEnded(x.date, x.endTime));
   const rows = teachers.map((t) => {
     const list = sessions.filter((s) => s.teacherId === t.id);
     const live = computePay(t, list);
@@ -43,7 +45,7 @@ export default async function Timesheet({ searchParams }: { searchParams: Promis
     const base = pr ? pr.baseAmount : live.base;
     const sub = pr ? pr.substituteAmount : live.substitute;
     const adj = pr?.adjustment ?? 0;
-    return { t, list, pr, sessions: pr ? pr.sessions : live.sessions, hours: pr ? pr.hours : live.hours, base, sub, subCount: list.filter((x) => x.originalTeacherId).length, adj, net: base + sub + adj };
+    return { t, list, pr, stale: stale.filter((x) => x.teacherId === t.id).length, sessions: pr ? pr.sessions : live.sessions, hours: pr ? pr.hours : live.hours, base, sub, subCount: list.filter((x) => x.originalTeacherId).length, adj, net: base + sub + adj };
   }).filter((r) => r.sessions > 0 || r.pr || r.t.payType === "FIXED");
 
   const totals = {
@@ -89,7 +91,7 @@ export default async function Timesheet({ searchParams }: { searchParams: Promis
           <tr key={r.t.id}>
             <td><div className="font-medium">{r.t.fullName}</div><div className="text-xs text-slate-500">{r.t.specialty ?? ""}</div></td>
             <td className="whitespace-nowrap">{PAY_LABEL[r.t.payType]}<div className="text-xs text-slate-500">{fmtMoney(r.t.payRate)}</div></td>
-            <td>{r.sessions}</td>
+            <td>{r.sessions}{r.stale > 0 && <div className="text-[11px] font-medium text-red-600" title="Buổi đã qua giờ nhưng chưa điểm danh nên chưa được tính công">⚠ {r.stale} chưa điểm danh</div>}</td>
             <td>{r.hours.toFixed(1)}</td>
             <td className="whitespace-nowrap">{fmtMoney(r.base)}</td>
             <td className="whitespace-nowrap">{r.sub ? <span className="text-sky-700">+{fmtMoney(r.sub)}<div className="text-[11px] text-slate-500">{r.subCount} buổi dạy thế</div></span> : "-"}</td>

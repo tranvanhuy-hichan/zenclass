@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AutoForm } from "@/components/auto-form";
 import { db } from "@/lib/db";
 import { requireRole, STAFF_ROLES } from "@/lib/guard";
 import { DialogButton } from "@/components/dialog";
@@ -64,7 +65,7 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
       <Tabs current={`?tab=${tab}`} items={isAdminUser ? [["?tab=debt", "Công nợ"], ["?tab=all", "Tất cả phiếu"], ["?tab=expense", "Chi phí"]] : [["?tab=debt", "Công nợ"], ["?tab=all", "Tất cả phiếu"]]} />
       {tab !== "expense" && (
         <>
-          <form className="flex gap-2"><input type="hidden" name="tab" value={tab} /><input name="q" defaultValue={q} placeholder="Tìm mã phiếu / học viên..." className={inputCls + " flex-1"} /><button className="px-4 rounded-lg border bg-white text-sm">Tìm</button></form>
+          <AutoForm className="flex gap-2"><input type="hidden" name="tab" value={tab} /><input name="q" defaultValue={q} placeholder="Tìm mã phiếu / học viên..." className={inputCls + " flex-1"} /></AutoForm>
           {tab === "debt" && <Card className="text-sm">Tổng công nợ: <b className="text-red-600">{fmtMoney(debt)}</b> ({total} phiếu)</Card>}
           <Table head={["Phiếu", "Học viên", "Ngày", "Hạn", "Tổng", "Còn nợ", "Trạng thái"]}>
             {invoices.map((i) => {

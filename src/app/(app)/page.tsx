@@ -4,14 +4,14 @@ import { db } from "@/lib/db";
 import { requireRole, teachingIds } from "@/lib/guard";
 import { ActionForm } from "@/components/action-form";
 import { Card, inputCls, Title } from "@/components/ui";
-import { todayUTC, fmtMoney, fmtDate, toMinutes } from "@/lib/format";
+import { todayUTC, fmtMoney, fmtDate, toMinutes, nowVN, roomLabel } from "@/lib/format";
 import { PortalHome } from "@/components/portal";
 import { addNote, toggleNote, deleteNote } from "./notes-actions";
 import { loadStudents } from "@/server/status";
 
 const short = (n: number) => (Math.abs(n) >= 1e6 ? `${(n / 1e6).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} tr` : fmtMoney(n));
 
-type TodaySession = { id: string; startTime: string; endTime: string; status: string; class: { name: string; mode: string; _count: { enrollments: number } }; teacher: { fullName: string } | null; room: { name: string } | null };
+type TodaySession = { id: string; startTime: string; endTime: string; status: string; class: { name: string; mode: string; _count: { enrollments: number } }; teacher: { fullName: string } | null; room: { name: string; branch: { name: string } | null } | null };
 
 function TodayList({ sessions }: { sessions: TodaySession[] }) {
   const nowVN = new Date(Date.now() + 7 * 3600_000);
@@ -31,13 +31,48 @@ function TodayList({ sessions }: { sessions: TodaySession[] }) {
           <div className="w-28 shrink-0 text-sm font-semibold tabular-nums">{s.startTime}<span className="text-slate-400"> – </span>{s.endTime}</div>
           <div className="min-w-0 flex-1">
             <div className="truncate font-medium">{s.class.name}</div>
-            <div className="truncate text-xs text-slate-500">{s.teacher?.fullName ?? "Chưa có GV"} · {s.room?.name ?? "Chưa có phòng"} · {s.class.mode === "ONLINE" ? "Online" : "Offline"} · {s.class._count.enrollments} HV</div>
+            <div className="truncate text-xs text-slate-500">{s.teacher?.fullName ?? "Chưa có GV"} · {roomLabel(s.room) ?? "Chưa có phòng"} · {s.class.mode === "ONLINE" ? "Online" : "Offline"} · {s.class._count.enrollments} HV</div>
           </div>
           {badge(s)}
           {s.status !== "CANCELLED" && <Link href={`/diem-danh/${s.id}`} className="inline-flex h-8 items-center rounded-md border bg-white px-3 text-sm font-medium text-orange-700 hover:bg-orange-50">{s.status === "DONE" ? "Xem / sửa" : "Điểm danh"}</Link>}
         </li>
       ))}
     </ul>
+  );
+}
+
+
+/** Buổi đã qua giờ nhưng chưa điểm danh và chưa cho nghỉ. */
+async function loadOverdue(scope: object) {
+  const today = todayUTC();
+  const n = nowVN();
+  const hhmm = `${String(n.getUTCHours()).padStart(2, "0")}:${String(n.getUTCMinutes()).padStart(2, "0")}`;
+  const where = { status: "PLANNED" as const, ...scope, OR: [{ date: { lt: today } }, { date: today, endTime: { lt: hhmm } }] };
+  const [count, list] = await Promise.all([
+    db.session.count({ where }),
+    db.session.findMany({ where, orderBy: [{ date: "desc" }, { startTime: "asc" }], take: 6, include: { class: true, teacher: true } }),
+  ]);
+  return { count, list };
+}
+
+function OverdueCard({ data, staff }: { data: Awaited<ReturnType<typeof loadOverdue>>; staff: boolean }) {
+  if (!data.count) return null;
+  return (
+    <Card className="border-red-300 p-0">
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <h2 className="flex items-center gap-2 font-semibold text-red-600"><AlertTriangle className="size-4" /> Buổi quá giờ chưa xử lý ({data.count})</h2>
+      </div>
+      <p className="px-4 pt-3 text-xs text-slate-500">Buổi đã qua giờ nhưng chưa điểm danh và chưa cho nghỉ. Buổi chưa điểm danh thì <b>không được tính công</b>. {staff ? "Mở buổi để điểm danh bù, hoặc cho nghỉ nếu lớp không học." : "Hãy điểm danh bù, hoặc báo giáo vụ nếu lớp không học."}</p>
+      <ul className="divide-y text-sm">
+        {data.list.map((s) => (
+          <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
+            <div className="min-w-0"><b>{s.class.name}</b><div className="text-xs text-slate-500">{fmtDate(s.date)} · {s.startTime}-{s.endTime}{s.teacher ? ` · ${s.teacher.fullName}` : ""}</div></div>
+            <Link href={`/diem-danh/${s.id}`} className="inline-flex h-8 items-center rounded-md bg-orange-600 px-3 text-xs font-medium text-white hover:bg-orange-700">Điểm danh bù</Link>
+          </li>
+        ))}
+      </ul>
+      {data.count > data.list.length && <div className="border-t px-4 py-2 text-xs text-slate-500">Còn {data.count - data.list.length} buổi nữa. Xem trong <Link href="/lich-hoc" className="text-orange-700 underline">Lịch học</Link> (ô viền đỏ đứt nét).</div>}
+    </Card>
   );
 }
 
@@ -50,7 +85,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
   const sessions = await db.session.findMany({
     where: { date: today, ...(t ? { OR: [{ teacherId: t.teacherId ?? "-" }, { class: { assistantId: t.assistantId ?? "-" } }] } : {}) },
     orderBy: { startTime: "asc" },
-    include: { class: { select: { name: true, mode: true, _count: { select: { enrollments: { where: { status: "ACTIVE" } } } } } }, teacher: { select: { fullName: true } }, room: { select: { name: true } } },
+    include: { class: { select: { name: true, mode: true, _count: { select: { enrollments: { where: { status: "ACTIVE" } } } } } }, teacher: { select: { fullName: true } }, room: { select: { name: true, branch: { select: { name: true } } } } },
   });
   const todayCard = (
     <Card className="p-0">
@@ -61,7 +96,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
       <TodayList sessions={sessions} />
     </Card>
   );
-  if (t || me.role === "TEACHER") return <div className="space-y-4"><Title>Xin chào, {me.name}</Title>{todayCard}</div>;
+  if (t || me.role === "TEACHER") {
+    const mine = await loadOverdue({ OR: [{ teacherId: t?.teacherId ?? "-" }, { class: { assistantId: t?.assistantId ?? "-" } }] });
+    return <div className="space-y-4"><Title>Xin chào, {me.name}</Title><OverdueCard data={mine} staff={false} />{todayCard}</div>;
+  }
+  const overdueSessions = await loadOverdue({});
 
   const months = Array.from({ length: 6 }, (_, i) => {
     const nowVN = new Date(Date.now() + 7 * 3600_000);
@@ -98,6 +137,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
   return (
     <div className="space-y-4">
       <Title>Tổng quan</Title>
+      <OverdueCard data={overdueSessions} staff />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <Stat icon={Users} label="Học viên đang học" value={cnt("learning") + cnt("ending") + cnt("makeup")} href="/hoc-vien?tab=learning" />
         <Stat icon={Hourglass} label="Chờ xếp lớp" value={cnt("waiting")} href="/hoc-vien?tab=waiting" tone="bg-sky-100 text-sky-700" />

@@ -93,3 +93,45 @@ export async function recalcEnrollment(studentId: string, classId: string) {
     data: { usedSessions: used, status: used >= enr.totalSessions && pending === 0 ? "FINISHED" : "ACTIVE" },
   });
 }
+
+export type Busy = { teachers: Record<string, string>; rooms: Record<string, string>; dates: number };
+
+/**
+ * Với lịch dự kiến (thứ, giờ, ngày bắt đầu, số buổi), trả về giáo viên / phòng nào đã bận
+ * kèm lý do ngắn gọn ("Trùng IELTS B1 · 6 buổi, từ 02/11/2026").
+ */
+export async function busyFor(a: { days: number[]; startTime: string; endTime: string; startDate: string; total: number; excludeClassId?: string }): Promise<Busy> {
+  const out: Busy = { teachers: {}, rooms: {}, dates: 0 };
+  if (!a.days.length || !a.startTime || !a.endTime || a.startTime >= a.endTime || !/^\d{4}-\d{2}-\d{2}$/.test(a.startDate)) return out;
+  const holidays = new Set((await db.holiday.findMany()).map((h) => h.date.getTime()));
+  const dates: Date[] = [];
+  let d = new Date(a.startDate + "T00:00:00Z");
+  for (let g = 0; dates.length < Math.max(1, a.total) && g < 2000; g++, d = addDays(d, 1)) {
+    if (holidays.has(d.getTime())) continue;
+    if (a.days.includes(d.getUTCDay())) dates.push(d);
+  }
+  out.dates = dates.length;
+  if (!dates.length) return out;
+  const others = await db.session.findMany({
+    where: { status: { not: "CANCELLED" }, date: { gte: dates[0], lte: dates[dates.length - 1] }, ...(a.excludeClassId ? { classId: { not: a.excludeClassId } } : {}) },
+    include: { class: { select: { name: true } } },
+  });
+  const set = new Set(dates.map((x) => x.getTime()));
+  const acc = new Map<string, { name: string; n: number; first: Date }>();
+  const add = (key: string, s: (typeof others)[number]) => {
+    const cur = acc.get(key);
+    if (!cur) acc.set(key, { name: s.class.name, n: 1, first: s.date });
+    else { cur.n++; if (s.date < cur.first) cur.first = s.date; }
+  };
+  for (const s of others) {
+    if (!set.has(s.date.getTime()) || !overlaps(a.startTime, a.endTime, s.startTime, s.endTime)) continue;
+    if (s.teacherId) add(`t:${s.teacherId}`, s);
+    if (s.roomId) add(`r:${s.roomId}`, s);
+  }
+  const f = (x: Date) => `${String(x.getUTCDate()).padStart(2, "0")}/${String(x.getUTCMonth() + 1).padStart(2, "0")}/${x.getUTCFullYear()}`;
+  for (const [k, v] of acc) {
+    const msg = `Trùng lớp ${v.name} · ${v.n} buổi, từ ${f(v.first)}`;
+    if (k.startsWith("t:")) out.teachers[k.slice(2)] = msg; else out.rooms[k.slice(2)] = msg;
+  }
+  return out;
+}
