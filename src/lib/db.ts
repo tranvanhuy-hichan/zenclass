@@ -10,9 +10,26 @@ import { PrismaClient } from "@prisma/client";
  *  - `rootDb` : role chủ bảng, bỏ qua RLS. CHỈ dùng cho đăng nhập, quản trị nền tảng và tác vụ nền.
  *               Kết nối bằng ROOT_DATABASE_URL (nên là pooler, cổng 6543 + pgbouncer=true trên Vercel), mặc định DIRECT_URL.
  */
+/**
+ * Trên Vercel mỗi lần gọi hàm có thể mở một bản sao riêng, nên số kết nối phải nhỏ và đi qua pooler dạng giao dịch
+ * (Supabase: cổng 6543). Cổng 5432 ("session mode") chỉ cho 15 kết nối cùng lúc và sẽ cạn ngay.
+ * Chỉ chỉnh khi dùng pooler của Supabase; CSDL cục bộ giữ nguyên.
+ */
+function tune(url: string | undefined, conns: number) {
+  if (!url) return undefined;
+  try {
+    const u = new URL(url);
+    if (!u.hostname.endsWith("pooler.supabase.com")) return url;
+    if (u.port === "5432") u.port = "6543"; // session -> transaction pooler
+    u.searchParams.set("pgbouncer", "true");
+    if (!u.searchParams.has("connection_limit")) u.searchParams.set("connection_limit", String(conns));
+    return u.toString();
+  } catch { return url; }
+}
+
 const g = globalThis as unknown as { base?: PrismaClient; root?: PrismaClient };
-const base = g.base ?? new PrismaClient();
-export const rootDb = g.root ?? new PrismaClient({ datasourceUrl: process.env.ROOT_DATABASE_URL ?? process.env.DIRECT_URL });
+const base = g.base ?? new PrismaClient({ datasourceUrl: tune(process.env.DATABASE_URL, 3) });
+export const rootDb = g.root ?? new PrismaClient({ datasourceUrl: tune(process.env.ROOT_DATABASE_URL ?? process.env.DIRECT_URL, 2) });
 if (process.env.NODE_ENV !== "production") { g.base = base; g.root = rootDb; }
 
 const als = new AsyncLocalStorage<string | null>();
