@@ -67,7 +67,34 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
         <>
           <AutoForm className="flex gap-2"><input type="hidden" name="tab" value={tab} /><input name="q" defaultValue={q} placeholder="Tìm mã phiếu / học viên..." className={inputCls + " flex-1"} /></AutoForm>
           {tab === "debt" && <Card className="text-sm">Tổng công nợ: <b className="text-red-600">{fmtMoney(debt)}</b> ({total} phiếu)</Card>}
-          <Table head={["Phiếu", "Học viên", "Ngày", "Hạn", "Tổng", "Còn nợ", "Trạng thái"]}>
+          {/* Điện thoại: mỗi phiếu là một thẻ — tên học viên và số còn nợ nổi bật, hạn và trạng thái ở dưới */}
+          <div className="space-y-2 md:hidden">
+            {invoices.map((i) => {
+              const late = !!i.dueDate && i.dueDate < today && ["UNPAID", "PARTIAL"].includes(i.status);
+              const owed = i.status === "VOID" ? 0 : i.total - i.paid;
+              const tone = { UNPAID: "bg-red-100 text-red-700", PARTIAL: "bg-yellow-100 text-yellow-800", PAID: "bg-green-100 text-green-800", VOID: "bg-slate-200 text-slate-600" }[i.status] ?? "bg-slate-100 text-slate-600";
+              return (
+                <Link key={i.id} href={`/tai-chinh/${i.id}`} className={`block rounded-xl border bg-white p-3.5 shadow-sm transition-colors active:bg-slate-50 ${late ? "border-red-300" : ""}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate font-semibold">{i.student.fullName}</div>
+                      <div className="mt-0.5 text-xs text-slate-500"><span className="font-mono">{i.code}</span> · {fmtDate(i.issueDate)}</div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className={`text-base font-bold tabular-nums ${owed > 0 ? "text-red-600" : "text-green-700"}`}>{owed > 0 ? fmtMoney(owed) : i.status === "VOID" ? "—" : "Đã đóng đủ"}</div>
+                      <div className="text-xs text-slate-500">Tổng {fmtMoney(i.total)}</div>
+                    </div>
+                  </div>
+                  <div className="mt-2.5 flex items-center justify-between gap-2 border-t pt-2.5 text-xs">
+                    <span className={late ? "font-medium text-red-600" : "text-slate-500"}>{i.dueDate ? `Hạn ${fmtDate(i.dueDate)}` : "Không có hạn"}{late ? " · Quá hạn" : ""}</span>
+                    <span className={`rounded-full px-2 py-0.5 font-medium ${tone}`}>{STL[i.status]}</span>
+                  </div>
+                </Link>
+              );
+            })}
+            {!invoices.length && <p className="py-8 text-center text-sm text-slate-500">Không có phiếu nào.</p>}
+          </div>
+          <div className="hidden md:block"><Table head={["Phiếu", "Học viên", "Ngày", "Hạn", "Tổng", "Còn nợ", "Trạng thái"]}>
             {invoices.map((i) => {
               const late = i.dueDate && i.dueDate < today && ["UNPAID", "PARTIAL"].includes(i.status);
               return (
@@ -78,18 +105,31 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
                 </tr>
               );
             })}
-          </Table>
+          </Table></div>
           <Pagination total={total} page={pg.page} size={pg.size} path="/tai-chinh" params={{ tab, q, size: sp.size }} />
         </>
       )}
       {tab === "expense" && (
         <>
-          <Table head={["Ngày", "Hạng mục", "Số tiền", "Ghi chú", ""]}>
+          <div className="space-y-2 md:hidden">
+            {expenses.map((e) => (
+              <div key={e.id} className="rounded-xl border bg-white p-3.5 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0"><div className="font-semibold">{e.category}</div><div className="mt-0.5 text-xs text-slate-500">{fmtDate(e.date)}</div></div>
+                  <div className="shrink-0 text-base font-bold tabular-nums text-red-600">-{fmtMoney(e.amount)}</div>
+                </div>
+                {e.note && <div className="mt-1.5 text-sm text-slate-600">{e.note}</div>}
+                {me.role === "ADMIN" && <div className="mt-2.5 flex justify-end border-t pt-2.5"><ActionForm action={deleteExpense} submit="Xoá" compact danger confirmText="Xoá khoản chi?" className=""><input type="hidden" name="id" value={e.id} /></ActionForm></div>}
+              </div>
+            ))}
+            {!expenses.length && <p className="py-8 text-center text-sm text-slate-500">Chưa có khoản chi nào.</p>}
+          </div>
+          <div className="hidden md:block"><Table head={["Ngày", "Hạng mục", "Số tiền", "Ghi chú", ""]}>
             {expenses.map((e) => (
               <tr key={e.id}><td>{fmtDate(e.date)}</td><td>{e.category}</td><td>{fmtMoney(e.amount)}</td><td>{e.note}</td>
                 <td>{me.role === "ADMIN" && <ActionForm action={deleteExpense} submit="Xoá" danger confirmText="Xoá khoản chi?" className=""><input type="hidden" name="id" value={e.id} /></ActionForm>}</td></tr>
             ))}
-          </Table>
+          </Table></div>
           <Pagination total={expTotal} page={pg.page} size={pg.size} path="/tai-chinh" params={{ tab, size: sp.size }} />
         </>
       )}
