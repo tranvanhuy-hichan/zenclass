@@ -142,7 +142,7 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
   };
 
   const tab = (v: string, text: React.ReactNode, Icon: typeof Table2) => (
-    <Link href={q({ view: v })} className={`inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm ${view === v ? "border-orange-600 bg-orange-600 text-white" : "bg-white hover:bg-slate-50"}`}><Icon className="size-4" />{text}</Link>
+    <Link href={q({ view: v })} className={`inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md border px-3 text-sm md:flex-none ${view === v ? "border-orange-600 bg-orange-600 text-white" : "bg-white hover:bg-slate-50"}`}><Icon className="size-4" />{text}</Link>
   );
 
   return (
