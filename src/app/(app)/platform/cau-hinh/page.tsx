@@ -2,7 +2,8 @@ import { requireRole } from "@/lib/guard";
 import { ActionForm } from "@/components/action-form";
 import { Card, Field, inputCls, Title } from "@/components/ui";
 import { DURATIONS, getPlatformCfg, PLAN_ORDER, priceFor, fmtVnd } from "@/lib/plans";
-import { saveConfig } from "../actions";
+import { saveConfig, registerPayosWebhook } from "../actions";
+import { appUrl, platformKeys } from "@/lib/payos";
 
 const ic = inputCls + " w-full";
 
@@ -12,6 +13,12 @@ export default async function Config() {
   return (
     <div className="space-y-4">
       <Title>Gói dịch vụ & thanh toán</Title>
+      <Card className="space-y-3">
+        <div className="flex items-center justify-between"><h2 className="font-semibold">Kết nối PayOS</h2><span className={`rounded-full px-2 py-0.5 text-xs font-medium ${platformKeys() ? "bg-green-100 text-green-800" : "bg-red-100 text-red-600"}`}>{platformKeys() ? "Đã có khoá" : "Chưa có khoá"}</span></div>
+        <p className="text-sm text-slate-600">Địa chỉ webhook của hệ thống: <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">{appUrl()}/api/webhook/payos/platform</code></p>
+        {!appUrl().startsWith("https://") && <p className="text-sm text-yellow-800">Đang dùng địa chỉ nội bộ nên chưa đăng ký được. Khi có tên miền (hoặc địa chỉ tunnel), đặt <code>APP_URL</code> trong <code>.env</code> rồi khởi động lại và bấm nút dưới. Trong lúc đó, đơn vẫn tự xác nhận nhờ cơ chế kiểm tra định kỳ.</p>}
+        <ActionForm action={registerPayosWebhook} submit="Đăng ký webhook với PayOS" reset={false} className="flex flex-col gap-2 [&>button]:self-start" />
+      </Card>
       <ActionForm action={saveConfig} submit="Lưu cấu hình" reset={false} className="flex flex-col gap-4 [&>button]:self-start">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {PLAN_ORDER.map((k) => {

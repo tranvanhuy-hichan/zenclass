@@ -7,6 +7,7 @@ import { wrap, str, int } from "@/lib/action";
 import { createUser, resetPassword } from "@/server/accounts";
 import { addMonths, getPlatformCfg, PLAN_ORDER, type PlanCode, type PlatformCfg } from "@/lib/plans";
 import { applyOrder } from "@/server/orders";
+import { appUrl, confirmWebhook, platformKeys } from "@/lib/payos";
 import { getSettings, saveSettings } from "@/lib/settings";
 
 const RESERVED = new Set(["admin", "api", "www", "app", "platform", "login", "superadmin", "root", "static"]);
@@ -118,4 +119,15 @@ export const saveConfig = wrap(async (fd) => {
   const v: PlatformCfg = { plans, discounts: { "1": pct("1"), "3": pct("3"), "6": pct("6"), "12": pct("12") }, bank: { bank: str(fd, "bank"), account: str(fd, "account"), name: str(fd, "accName") } };
   await rootDb.platformConfig.upsert({ where: { key: "main" }, update: { value: v }, create: { key: "main", value: v } });
   revalidatePath("/platform", "layout"); revalidatePath("/goi-dich-vu");
+});
+
+/** Đăng ký webhook thanh toán gói dịch vụ với PayOS (dùng APP_URL làm địa chỉ gốc). */
+export const registerPayosWebhook = wrap(async () => {
+  await assertRole("SUPERADMIN");
+  const keys = platformKeys();
+  if (!keys) throw new Error("Chưa cấu hình PAYOS_CLIENT_ID / PAYOS_API_KEY / PAYOS_CHECKSUM_KEY trong .env");
+  const url = `${appUrl()}/api/webhook/payos/platform`;
+  if (!url.startsWith("https://")) throw new Error(`PayOS chỉ nhận địa chỉ công khai có HTTPS, hiện APP_URL là ${appUrl()}. Hãy đặt APP_URL thành tên miền thật hoặc địa chỉ tunnel rồi khởi động lại ứng dụng.`);
+  await confirmWebhook(keys, url);
+  return `Đã đăng ký webhook: ${url}`;
 });

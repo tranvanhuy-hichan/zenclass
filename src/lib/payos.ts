@@ -38,6 +38,10 @@ export const getPaymentInfo = (keys: PayosKeys, orderCode: number) => call<Payos
 export const cancelPaymentLink = (keys: PayosKeys, orderCode: number) =>
   call<unknown>(keys, `/v2/payment-requests/${orderCode}/cancel`, { method: "POST", body: JSON.stringify({}) });
 
+/** Đăng ký địa chỉ webhook cho kênh (PayOS sẽ gọi thử địa chỉ này, nên phải là địa chỉ công khai). */
+export const confirmWebhook = (keys: PayosKeys, webhookUrl: string) =>
+  call<unknown>(keys, "/confirm-webhook", { method: "POST", body: JSON.stringify({ webhookUrl }) });
+
 export type PayosWebhook = { code: string; desc?: string; success?: boolean; data: Record<string, unknown> & { orderCode: number; amount: number; code?: string }; signature: string };
 
 /** Kiểm tra chữ ký webhook: ký các trường của `data` theo thứ tự chữ cái. */
