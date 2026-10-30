@@ -15,6 +15,7 @@ import { ClassFormFields } from "../class-fields";
 import { cancelSession, deleteClass, enrollStudent, setEnrollment, transferStudent, updateClass, updateSchedule } from "../actions";
 import { classAccounts } from "../../hoc-vien/actions";
 import { ImportStudents } from "./import-students";
+import { ActionMenu } from "@/components/action-menu";
 
 const TABS = [["overview", "Tổng quan"], ["students", "Học viên"], ["sessions", "Buổi học"], ["grades", "Bảng điểm"], ["settings", "Thông tin"]] as const;
 const EN = { ACTIVE: "Đang học", PAUSED: "Bảo lưu", FINISHED: "Hết/chuyển", WAITING: "Chờ", DROPPED: "Nghỉ" } as const;
@@ -182,27 +183,32 @@ export default async function ClassDetail({ params, searchParams }: { params: Pr
                         <Link className="block truncate font-semibold hover:text-orange-700" href={`/hoc-vien/${e.studentId}`}>{e.student.fullName}</Link>
                         <div className="truncate text-xs text-slate-500">{e.student.code}{e.student.phone ? ` · ${e.student.phone}` : ""}</div>
                       </div>
-                      <span className={`flex shrink-0 items-center gap-1.5 text-xs font-semibold ${text}`}><i className={`inline-block size-2 rounded-full ${dot}`} />{EN[e.status]}</span>
+                      {(e.status === "ACTIVE" || e.status === "PAUSED") && (
+                        <ActionMenu label={`Thao tác · ${e.student.fullName}`}>
+                          {e.status === "ACTIVE" ? (
+                            <>
+                              <DialogButton variant="secondary" block label="Đổi lớp" title={`Đổi lớp · ${e.student.fullName}`}>
+                                <ActionForm action={transferStudent} submit="Chuyển lớp" className="flex flex-col gap-3 [&>button]:self-start">
+                                  <input type="hidden" name="id" value={e.id} />
+                                  <p className="text-sm text-slate-600">Giữ nguyên số buổi còn lại ({Math.max(left, 0)} buổi). Chỉ chuyển được sang lớp cùng khoá{c.course ? ` "${c.course.name}"` : ""}.</p>
+                                  <Field label="Chuyển sang lớp"><select name="toClassId" className={inputCls + " w-full"}><option value="">-- chọn lớp --</option>{others.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</select>{!others.length && <span className="text-xs text-red-600">Không có lớp nào khác cùng khoá.</span>}</Field>
+                                </ActionForm>
+                              </DialogButton>
+                              <ActionForm action={setEnrollment} submit="Bảo lưu" block className="block"><input type="hidden" name="id" value={e.id} /><input type="hidden" name="status" value="PAUSED" /></ActionForm>
+                              <ActionForm action={setEnrollment} submit="Cho nghỉ" block danger confirmText="Cho học viên nghỉ lớp này?" className="block"><input type="hidden" name="id" value={e.id} /><input type="hidden" name="status" value="DROPPED" /></ActionForm>
+                            </>
+                          ) : (
+                            <ActionForm action={setEnrollment} submit="Học lại" block className="block"><input type="hidden" name="id" value={e.id} /><input type="hidden" name="status" value="ACTIVE" /></ActionForm>
+                          )}
+                        </ActionMenu>
+                      )}
                     </div>
                     <div className="mt-2.5 flex items-center gap-2">
+                      <span className={`flex shrink-0 items-center gap-1.5 text-xs font-semibold ${text}`}><i className={`inline-block size-2 rounded-full ${dot}`} />{EN[e.status]}</span>
                       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-orange-500" style={{ width: `${pct}%` }} /></div>
                       <span className="shrink-0 text-xs tabular-nums text-slate-600">{e.usedSessions}/{e.totalSessions}{e.status === "ACTIVE" && left <= 3 ? ` · còn ${Math.max(left, 0)}` : ""}</span>
                     </div>
                     {e.student.parent && <div className="mt-1.5 truncate text-xs text-slate-500">PH: {e.student.parent.fullName}{e.student.parent.phone ? ` · ${e.student.parent.phone}` : ""}</div>}
-                    {e.status === "ACTIVE" && (
-                      <div className="mt-3 grid grid-cols-3 gap-2">
-                        <DialogButton variant="secondary" block label="Đổi lớp" title={`Đổi lớp · ${e.student.fullName}`}>
-                          <ActionForm action={transferStudent} submit="Chuyển lớp" className="flex flex-col gap-3 [&>button]:self-start">
-                            <input type="hidden" name="id" value={e.id} />
-                            <p className="text-sm text-slate-600">Giữ nguyên số buổi còn lại ({Math.max(left, 0)} buổi). Chỉ chuyển được sang lớp cùng khoá{c.course ? ` "${c.course.name}"` : ""}.</p>
-                            <Field label="Chuyển sang lớp"><select name="toClassId" className={inputCls + " w-full"}><option value="">-- chọn lớp --</option>{others.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</select>{!others.length && <span className="text-xs text-red-600">Không có lớp nào khác cùng khoá.</span>}</Field>
-                          </ActionForm>
-                        </DialogButton>
-                        <ActionForm action={setEnrollment} submit="Bảo lưu" block className="contents"><input type="hidden" name="id" value={e.id} /><input type="hidden" name="status" value="PAUSED" /></ActionForm>
-                        <ActionForm action={setEnrollment} submit="Cho nghỉ" block danger confirmText="Cho học viên nghỉ lớp này?" className="contents"><input type="hidden" name="id" value={e.id} /><input type="hidden" name="status" value="DROPPED" /></ActionForm>
-                      </div>
-                    )}
-                    {e.status === "PAUSED" && <div className="mt-3"><ActionForm action={setEnrollment} submit="Học lại" block className="contents"><input type="hidden" name="id" value={e.id} /><input type="hidden" name="status" value="ACTIVE" /></ActionForm></div>}
                   </div>
                 );
               })}
