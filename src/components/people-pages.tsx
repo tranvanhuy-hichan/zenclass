@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PersonCard } from "@/components/person-card";
 import { ViewToggle, pickView } from "@/components/view-toggle";
 import { AutoForm } from "@/components/auto-form";
 import { notFound } from "next/navigation";
@@ -43,35 +44,20 @@ export async function PeopleList({ kind, searchParams }: { kind: Kind; searchPar
   return (
     <div className="space-y-4">
       <Title right={<Link href={`${K.base}/them`} className={btn}>+ Thêm {K.label.toLowerCase()}</Link>}>{K.label} ({total})</Title>
-      <AutoForm className="flex gap-2"><input type="hidden" name="v" value={view} /><input name="q" defaultValue={q} placeholder="Tìm theo tên, SĐT..." className={inputCls + " flex-1"} /><ViewToggle path={K.base} params={{ q, size: sp.size }} view={view} /></AutoForm>
+      <AutoForm className="flex gap-2"><input type="hidden" name="v" value={view} /><input name="q" defaultValue={q} placeholder="Tìm theo tên, SĐT..." className={inputCls + " min-w-0 flex-1"} /><div className="hidden md:block"><ViewToggle path={K.base} params={{ q, size: sp.size }} view={view} /></div></AutoForm>
+      {view !== "cards" && (
+        <div className="space-y-2 md:hidden">
+          {list.map((p: PersonRow) => <div key={p.id}><PersonCard href={`${K.base}/${p.id}`} name={p.fullName} avatarUrl={p.avatarUrl} tag={(kind === "assistant" ? p.specialty : p.position) ?? K.label} phone={p.phone} email={p.email} stats={[{ label: "Phụ trách", value: `${p._count.classes} lớp` }, ...(me.role === "ADMIN" ? [{ label: kind === "assistant" ? "Mức lương" : "Lương tháng", value: fmtMoney((kind === "assistant" ? p.payRate : p.salary) ?? 0) }] : [])]} /></div>)}
+          {!list.length && <p className="py-8 text-center text-sm text-slate-500">Chưa có {K.label.toLowerCase()}.</p>}
+        </div>
+      )}
       {view === "cards" ? (
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        {list.map((p: PersonRow) => (
-          <Link key={p.id} href={`${K.base}/${p.id}`}>
-            <Card className="flex h-full flex-col gap-3 transition-colors hover:border-orange-400">
-              <div className="flex items-center gap-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                {p.avatarUrl ? <img src={p.avatarUrl} alt="" className="size-12 rounded-full object-cover" /> : <span className="grid size-12 shrink-0 place-items-center rounded-full bg-orange-100 text-lg font-bold text-orange-700">{p.fullName.split(" ").pop()?.[0]}</span>}
-                <div className="min-w-0">
-                  <div className="truncate text-base font-semibold">{p.fullName}</div>
-                  <span className="inline-block max-w-full truncate rounded bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">{(kind === "assistant" ? p.specialty : p.position) ?? K.label}</span>
-                </div>
-              </div>
-              <div className="space-y-1 text-sm text-slate-600">
-                <div className="flex items-center gap-2"><Phone className="size-4 shrink-0 text-slate-400" />{p.phone ?? "-"}</div>
-                <div className="flex items-center gap-2"><Mail className="size-4 shrink-0 text-slate-400" /><span className="truncate">{p.email ?? "-"}</span></div>
-              </div>
-              <div className="mt-auto grid grid-cols-2 gap-3 border-t pt-3 text-sm">
-                <div><div className="text-xs text-slate-500">Phụ trách</div><b>{p._count.classes}</b> lớp</div>
-                {me.role === "ADMIN" && <div><div className="text-xs text-slate-500">{kind === "assistant" ? "Mức lương" : "Lương tháng"}</div><b>{fmtMoney((kind === "assistant" ? p.payRate : p.salary) ?? 0)}</b></div>}
-              </div>
-            </Card>
-          </Link>
-        ))}
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-3 xl:grid-cols-3 2xl:grid-cols-4">
+        {list.map((p: PersonRow) => <div key={p.id}><PersonCard href={`${K.base}/${p.id}`} name={p.fullName} avatarUrl={p.avatarUrl} tag={(kind === "assistant" ? p.specialty : p.position) ?? K.label} phone={p.phone} email={p.email} stats={[{ label: "Phụ trách", value: `${p._count.classes} lớp` }, ...(me.role === "ADMIN" ? [{ label: kind === "assistant" ? "Mức lương" : "Lương tháng", value: fmtMoney((kind === "assistant" ? p.payRate : p.salary) ?? 0) }] : [])]} /></div>)}
         {!list.length && <p className="text-sm text-slate-500">Chưa có {K.label.toLowerCase()}.</p>}
       </div>
       ) : (
-        <Table head={[K.label, kind === "assistant" ? "Chuyên môn" : "Chức vụ", "Điện thoại", "Email", "Phụ trách", ...(me.role === "ADMIN" ? [kind === "assistant" ? "Mức lương" : "Lương tháng"] : [])]}>
+        <div className="hidden md:block"><Table head={[K.label, kind === "assistant" ? "Chuyên môn" : "Chức vụ", "Điện thoại", "Email", "Phụ trách", ...(me.role === "ADMIN" ? [kind === "assistant" ? "Mức lương" : "Lương tháng"] : [])]}>
           {list.map((p: PersonRow) => (
             <tr key={p.id} className="align-middle [&>td]:!py-3">
               <td><Link data-row href={`${K.base}/${p.id}`} className="font-semibold text-orange-700 hover:underline">{p.fullName}</Link></td>
@@ -81,7 +67,7 @@ export async function PeopleList({ kind, searchParams }: { kind: Kind; searchPar
             </tr>
           ))}
           {!list.length && <tr><td colSpan={6} className="py-8 text-center text-slate-500">Chưa có {K.label.toLowerCase()}.</td></tr>}
-        </Table>
+        </Table></div>
       )}
       <Pagination total={total} page={pg.page} size={pg.size} path={K.base} params={{ q, size: sp.size, v: sp.v }} />
     </div>

@@ -1,10 +1,10 @@
 import Link from "next/link";
+import { PersonCard } from "@/components/person-card";
 import { ViewToggle, pickView } from "@/components/view-toggle";
 import { AutoForm } from "@/components/auto-form";
-import { Mail, Phone } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireRole, STAFF_ROLES } from "@/lib/guard";
-import { Card, inputCls, Table, Title } from "@/components/ui";
+import { inputCls, Table, Title } from "@/components/ui";
 import { Pagination } from "@/components/pagination";
 import { getPaging } from "@/lib/paging";
 import { fmtMoney } from "@/lib/format";
@@ -31,39 +31,21 @@ export default async function Teachers({ searchParams }: { searchParams: Promise
   return (
     <div className="space-y-4">
       <Title right={<Link href="/giao-vien/them" className="inline-flex h-9 items-center rounded-md bg-orange-600 px-4 text-sm font-medium text-white hover:bg-orange-700">+ Thêm giáo viên</Link>}>Giáo viên ({total})</Title>
-      <AutoForm className="flex gap-2"><input type="hidden" name="v" value={view} /><input name="q" defaultValue={q} placeholder="Tìm theo tên, SĐT, chuyên môn..." className={inputCls + " flex-1"} /><ViewToggle path="/giao-vien" params={{ q, size: sp.size }} view={view} /></AutoForm>
+      <AutoForm className="flex gap-2"><input type="hidden" name="v" value={view} /><input name="q" defaultValue={q} placeholder="Tìm theo tên, SĐT, chuyên môn..." className={inputCls + " min-w-0 flex-1"} /><div className="hidden md:block"><ViewToggle path="/giao-vien" params={{ q, size: sp.size }} view={view} /></div></AutoForm>
 
+      {view !== "cards" && (
+        <div className="space-y-2 md:hidden">
+          {list.map((t) => <div key={t.id}><PersonCard href={`/giao-vien/${t.id}`} name={t.fullName} avatarUrl={t.avatarUrl} tag={t.specialty} badge={t.user && !t.user.isActive ? <span className="rounded bg-red-100 px-1.5 py-0.5 text-xs text-red-600">TK bị khoá</span> : null} phone={t.phone} email={t.email} stats={[{ label: "Đang dạy", value: `${t._count.classes} lớp` }, { label: "Buổi dạy tháng này", value: `${monthCount.get(t.id) ?? 0} buổi` }, ...(isAdmin ? [{ label: "Mức lương", value: <>{fmtMoney(t.payRate)}<span className="font-normal text-slate-500">{UNIT[t.payType]}</span></> }] : [])]} /></div>)}
+          {!list.length && <p className="py-8 text-center text-sm text-slate-500">Không tìm thấy giáo viên.</p>}
+        </div>
+      )}
       {view === "cards" ? (
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        {list.map((t) => (
-          <Link key={t.id} href={`/giao-vien/${t.id}`}>
-            <Card className="flex h-full flex-col gap-3 transition-colors hover:border-orange-400">
-              <div className="flex items-center gap-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                {t.avatarUrl ? <img src={t.avatarUrl} alt="" className="size-12 rounded-full object-cover" /> : <span className="grid size-12 shrink-0 place-items-center rounded-full bg-orange-100 text-lg font-bold text-orange-700">{t.fullName.split(" ").pop()?.[0]}</span>}
-                <div className="min-w-0">
-                  <div className="truncate text-base font-semibold">{t.fullName}</div>
-                  {t.specialty ? <span className="inline-block max-w-full truncate rounded bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">{t.specialty}</span> : <span className="text-xs text-slate-400">Chưa có chuyên môn</span>}
-                </div>
-              </div>
-              <div className="space-y-1 text-sm text-slate-600">
-                <div className="flex items-center gap-2"><Phone className="size-4 shrink-0 text-slate-400" />{t.phone ?? "-"}</div>
-                <div className="flex items-center gap-2 truncate"><Mail className="size-4 shrink-0 text-slate-400" /><span className="truncate">{t.email ?? "-"}</span></div>
-              </div>
-              <div className="mt-auto grid grid-cols-2 gap-x-3 gap-y-2 border-t pt-3 text-sm">
-                <div><div className="text-xs text-slate-500">Đang dạy</div><b>{t._count.classes}</b> lớp</div>
-                <div><div className="text-xs text-slate-500">Buổi dạy tháng này</div><b>{monthCount.get(t.id) ?? 0}</b> buổi</div>
-                {isAdmin && <div className="col-span-2"><div className="text-xs text-slate-500">Mức lương</div><b>{fmtMoney(t.payRate)}</b><span className="text-slate-500">{UNIT[t.payType]}</span>
-                  {t.user && !t.user.isActive && <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-xs text-red-600">TK bị khoá</span>}
-                </div>}
-              </div>
-            </Card>
-          </Link>
-        ))}
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-3 xl:grid-cols-3 2xl:grid-cols-4">
+        {list.map((t) => <div key={t.id}><PersonCard href={`/giao-vien/${t.id}`} name={t.fullName} avatarUrl={t.avatarUrl} tag={t.specialty} badge={t.user && !t.user.isActive ? <span className="rounded bg-red-100 px-1.5 py-0.5 text-xs text-red-600">TK bị khoá</span> : null} phone={t.phone} email={t.email} stats={[{ label: "Đang dạy", value: `${t._count.classes} lớp` }, { label: "Buổi dạy tháng này", value: `${monthCount.get(t.id) ?? 0} buổi` }, ...(isAdmin ? [{ label: "Mức lương", value: <>{fmtMoney(t.payRate)}<span className="font-normal text-slate-500">{UNIT[t.payType]}</span></> }] : [])]} /></div>)}
         {!list.length && <p className="text-sm text-slate-500">Không tìm thấy giáo viên.</p>}
       </div>
       ) : (
-        <Table head={["Giáo viên", "Chuyên môn", "Điện thoại", "Đang dạy", "Buổi dạy tháng này", ...(isAdmin ? ["Mức lương"] : [])]}>
+        <div className="hidden md:block"><Table head={["Giáo viên", "Chuyên môn", "Điện thoại", "Đang dạy", "Buổi dạy tháng này", ...(isAdmin ? ["Mức lương"] : [])]}>
           {list.map((t) => (
             <tr key={t.id} className="align-middle [&>td]:!py-3">
               <td><Link data-row href={`/giao-vien/${t.id}`} className="font-semibold text-orange-700 hover:underline">{t.fullName}</Link>{t.user && !t.user.isActive && <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-xs text-red-600">TK bị khoá</span>}</td>
@@ -72,7 +54,7 @@ export default async function Teachers({ searchParams }: { searchParams: Promise
             </tr>
           ))}
           {!list.length && <tr><td colSpan={6} className="py-8 text-center text-slate-500">Không tìm thấy giáo viên.</td></tr>}
-        </Table>
+        </Table></div>
       )}
       <Pagination total={total} page={pg.page} size={pg.size} path="/giao-vien" params={{ q, size: sp.size, v: sp.v }} />
     </div>
