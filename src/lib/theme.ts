@@ -14,14 +14,15 @@ export type Theme = {
 };
 
 export const DEFAULT_THEME: Theme = {
-  primary: "#0b63b8", background: "#f8fafc", surface: "#ffffff", text: "#172033", line: "#e2e8f0",
-  sidebar: "#084a8c", font: "Segoe UI", headingFont: "Segoe UI", fontSize: 14, radius: 8, logo: "", dark: false,
+  primary: "#6d28d9", background: "#faf7ff", surface: "#ffffff", text: "#172033", line: "#e6dcf7",
+  sidebar: "#3b0764", font: "Segoe UI", headingFont: "Segoe UI", fontSize: 14, radius: 8, logo: "", dark: false,
 };
 
 export const FONTS = ["Segoe UI", "Be Vietnam Pro", "Inter", "Roboto", "Nunito", "Montserrat", "Lexend", "Quicksand", "Open Sans", "Merriweather", "Playfair Display", "System"];
 
 export const PRESETS: Record<string, Partial<Theme>> = {
-  "Xanh dương (mặc định)": { primary: "#0b63b8", background: "#f8fafc", surface: "#ffffff", text: "#172033", line: "#e2e8f0", sidebar: "#084a8c", dark: false },
+  "Tím đậm (mặc định)": { primary: "#6d28d9", background: "#faf7ff", surface: "#ffffff", text: "#172033", line: "#e6dcf7", sidebar: "#3b0764", dark: false },
+  "Xanh dương": { primary: "#0b63b8", background: "#f8fafc", surface: "#ffffff", text: "#172033", line: "#e2e8f0", sidebar: "#084a8c", dark: false },
   "Xanh lá": { primary: "#15803d", background: "#f6faf7", surface: "#ffffff", text: "#172033", line: "#dde7df", sidebar: "#14532d", dark: false },
   "Cam": { primary: "#ea580c", background: "#fff7ed", surface: "#ffffff", text: "#1f2937", line: "#e5e7eb", sidebar: "#7c2d12", dark: false },
   "Tím": { primary: "#7c3aed", background: "#f7f5ff", surface: "#ffffff", text: "#1f2937", line: "#e4defa", sidebar: "#4c1d95", dark: false },
@@ -77,7 +78,7 @@ function lum(hex: string) {
   return 0.299 * r + 0.587 * g + 0.114 * b;
 }
 
-const LIGHT_COLORS = { background: "#f8fafc", surface: "#ffffff", text: "#172033", line: "#e2e8f0", sidebar: "#084a8c" };
+const LIGHT_COLORS = { background: "#faf7ff", surface: "#ffffff", text: "#172033", line: "#e6dcf7", sidebar: "#3b0764" };
 const DARK_COLORS = { background: "#0f172a", surface: "#1e293b", text: "#e2e8f0", line: "#334155", sidebar: "#020617" };
 
 function block(t: Theme, dark: boolean) {
