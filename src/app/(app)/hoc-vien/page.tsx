@@ -3,7 +3,8 @@ import { ViewToggle, pickView } from "@/components/view-toggle";
 import { AutoForm } from "@/components/auto-form";
 import { db } from "@/lib/db";
 import { requireRole, STAFF_ROLES } from "@/lib/guard";
-import { inputCls, Table, Title } from "@/components/ui";
+import { inputCls, Table, Tabs, Title } from "@/components/ui";
+import { MobileCollapse } from "@/components/mobile-collapse";
 import { Pagination } from "@/components/pagination";
 import { getPaging } from "@/lib/paging";
 import { loadStudents, STATUS_LABEL, type StudentStatus } from "@/server/status";
@@ -36,19 +37,15 @@ export default async function Students({ searchParams }: { searchParams: Promise
   return (
     <div className="space-y-4">
       <Title right={<><a href="/api/export/students" className="text-sm underline">Xuất Excel (CSV)</a><Link href="/hoc-vien/them" className="inline-flex h-9 items-center rounded-md bg-orange-600 px-4 text-sm font-medium text-white hover:bg-orange-700">+ Thêm học viên</Link></>}>Danh sách Học viên</Title>
-      <div className="flex gap-1 overflow-x-auto border-b">
-        {TABS.map(([k, l]) => (
-          <Link key={k} href={`/hoc-vien?tab=${k}&q=${encodeURIComponent(q)}&sort=${sort}&classId=${classId}`} className={`-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm ${tab === k ? "border-orange-600 font-semibold text-orange-700" : "border-transparent text-slate-500 hover:text-slate-800"}`}>
-            {l} <span className="text-xs text-slate-400">({counts[k] ?? 0})</span>
-          </Link>
-        ))}
-      </div>
-      <AutoForm className="flex gap-2">
+      <Tabs current={`/hoc-vien?tab=${tab}&q=${encodeURIComponent(q)}&sort=${sort}&classId=${classId}`} items={TABS.map(([k, l]) => [`/hoc-vien?tab=${k}&q=${encodeURIComponent(q)}&sort=${sort}&classId=${classId}`, `${l} (${counts[k] ?? 0})`] as [string, string])} />
+      <AutoForm className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="tab" value={tab} /><input type="hidden" name="v" value={view} />
-        <input name="q" defaultValue={q} placeholder="Tìm theo tên, mã, SĐT..." className={inputCls + " flex-1"} />
+        <input name="q" defaultValue={q} placeholder="Tìm theo tên, mã, SĐT..." className={inputCls + " min-w-48 flex-1 max-md:w-full max-md:basis-full"} />
+        <div className="min-w-0 max-md:flex-1"><ViewToggle path="/hoc-vien" params={{ q, tab, sort, classId, size: sp.size }} view={view} /></div>
+        <MobileCollapse active={[classId, sort !== "az" ? sort : ""].filter(Boolean).length}>
         <select name="classId" defaultValue={classId} className={inputCls + " max-w-56"}><option value="">Tất cả lớp</option>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
         <select name="sort" defaultValue={sort} className={inputCls}><option value="az">Tên A-Z</option><option value="za">Tên Z-A</option><option value="new">Mới nhất</option></select>
-        <ViewToggle path="/hoc-vien" params={{ q, tab, sort, classId, size: sp.size }} view={view} />
+        </MobileCollapse>
       </AutoForm>
       {view === "table" ? (
       <Table head={["Học viên", "Trạng thái", "Lớp đang học", "Phụ huynh"]}>

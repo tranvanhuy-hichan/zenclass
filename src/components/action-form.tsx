@@ -12,6 +12,7 @@ export function ActionForm({
   danger = false,
   compact = false,
   ghost = false,
+  block = false,
   confirmText,
 }: {
   action: (p: Res, fd: FormData) => Promise<Res>;
@@ -22,6 +23,8 @@ export function ActionForm({
   danger?: boolean;
   compact?: boolean;
   ghost?: boolean;
+  /** Nút viền, cao 36px, rộng hết ô chứa — dùng cho cụm nút hành động trên điện thoại. */
+  block?: boolean;
   confirmText?: string;
 }) {
   const [res, fn, pending] = useActionState(action, null);
@@ -46,7 +49,9 @@ export function ActionForm({
       {children}
       <button
         disabled={pending}
-        className={`${compact ? "h-7 px-2 text-xs" : "h-9 px-4 text-sm"} justify-self-start whitespace-nowrap rounded-md font-medium transition-colors disabled:opacity-50 ${
+        className={block
+          ? `h-9 w-full whitespace-nowrap rounded-md border bg-white px-2 text-sm font-medium transition-colors disabled:opacity-50 ${danger ? "border-red-300 text-red-600 hover:bg-red-50" : "text-slate-700 hover:bg-slate-50"}`
+          : `${compact ? "h-7 px-2 text-xs" : "h-9 px-4 text-sm"} justify-self-start whitespace-nowrap rounded-md font-medium transition-colors disabled:opacity-50 ${
           ghost ? (danger ? "text-red-600 hover:bg-red-50" : "text-orange-700 hover:bg-orange-50") : `text-white ${danger ? "bg-red-700 hover:bg-red-800" : "bg-orange-600 hover:bg-orange-700"}`
         }`}>
         {pending ? "..." : submit}

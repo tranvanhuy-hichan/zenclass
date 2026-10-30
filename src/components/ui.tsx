@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { ResponsiveTable } from "@/components/responsive-table";
 
 export const inputCls = "h-9 border rounded-md px-3 text-sm bg-white";
@@ -17,17 +16,7 @@ export function Field({ label, children }: { label: string; children: React.Reac
     </label>
   );
 }
-export function Tabs({ items, current }: { items: [string, string][]; current: string }) {
-  return (
-    <div className="mb-4 flex gap-1 overflow-x-auto border-b">
-      {items.map(([href, label]) => (
-        <Link key={href} href={href} className={`-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm ${current === href ? "border-orange-600 font-semibold text-orange-700" : "border-transparent text-slate-500 hover:text-slate-800"}`}>
-          {label}
-        </Link>
-      ))}
-    </div>
-  );
-}
+export { Tabs } from "@/components/tabs";
 export function Table({ head, children }: { head: string[]; children: React.ReactNode }) {
   return (
     <div className="overflow-x-auto rounded-lg border bg-white">

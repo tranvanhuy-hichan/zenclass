@@ -3,7 +3,7 @@ import { rootDb } from "@/lib/db";
 import { requireRole } from "@/lib/guard";
 import { ActionForm } from "@/components/action-form";
 import { AutoForm } from "@/components/auto-form";
-import { Table, Title, inputCls } from "@/components/ui";
+import { Table, Tabs, Title, inputCls } from "@/components/ui";
 import { Pagination } from "@/components/pagination";
 import { getPaging } from "@/lib/paging";
 import { fmtDate } from "@/lib/format";
@@ -32,13 +32,7 @@ export default async function Orders({ searchParams }: { searchParams: Promise<{
   return (
     <div className="space-y-4">
       <Title>Đơn hàng ({total})</Title>
-      <div className="flex gap-1 overflow-x-auto border-b">
-        {[["PENDING", "Chờ thanh toán"], ["PAID", "Đã thanh toán"], ["CANCELLED", "Đã huỷ"], ["", "Tất cả"]].map(([k, l]) => (
-          <Link key={k} href={`/platform/don-hang?status=${k}`} className={`-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm ${status === k ? "border-orange-600 font-semibold text-orange-700" : "border-transparent text-slate-600 hover:text-slate-900"}`}>
-            {l} {k && <span className="text-xs text-slate-400">({sum.get(k)?._count ?? 0}{k === "PAID" && sum.get(k)?._sum.amount ? ` · ${fmtVnd(sum.get(k)!._sum.amount!)}` : ""})</span>}
-          </Link>
-        ))}
-      </div>
+      <Tabs current={`/platform/don-hang?status=${status}`} items={[["PENDING", "Chờ thanh toán"], ["PAID", "Đã thanh toán"], ["CANCELLED", "Đã huỷ"], ["", "Tất cả"]].map(([k, l]) => [`/platform/don-hang?status=${k}`, `${l}${k ? ` (${sum.get(k)?._count ?? 0})` : ""}`] as [string, string])} />
       <AutoForm className="flex gap-2"><input type="hidden" name="status" value={status} /><input name="q" defaultValue={sp.q} placeholder="Tìm mã đơn hoặc tên trung tâm..." className={inputCls + " flex-1"} /></AutoForm>
       <Table head={["Mã đơn", "Trung tâm", "Gói", "Thời hạn", "Số tiền", "Trạng thái", "Ngày tạo", ""]}>
         {list.map((o) => {

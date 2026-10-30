@@ -16,7 +16,7 @@ import { cancelSession, deleteClass, enrollStudent, setEnrollment, transferStude
 import { classAccounts } from "../../hoc-vien/actions";
 import { ImportStudents } from "./import-students";
 
-const TABS = [["overview", "Tổng quan"], ["students", "Học viên"], ["sessions", "Buổi học"], ["grades", "Bảng điểm"], ["settings", "Thông tin & Lịch"]] as const;
+const TABS = [["overview", "Tổng quan"], ["students", "Học viên"], ["sessions", "Buổi học"], ["grades", "Bảng điểm"], ["settings", "Thông tin"]] as const;
 const EN = { ACTIVE: "Đang học", PAUSED: "Bảo lưu", FINISHED: "Hết/chuyển", WAITING: "Chờ", DROPPED: "Nghỉ" } as const;
 const SS = { PLANNED: "Chưa dạy", DONE: "Đã dạy", CANCELLED: "Nghỉ" } as const;
 const menuForm = "flex flex-col items-stretch gap-1 [&>button]:w-full [&>button]:justify-self-stretch";
@@ -60,30 +60,41 @@ export default async function ClassDetail({ params, searchParams }: { params: Pr
               {c.finished ? <span className="rounded bg-slate-200 px-2 py-0.5 text-xs">Đã kết thúc</span> : <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">Đang mở</span>}
               <span className="rounded bg-slate-100 px-2 py-0.5 text-xs">{c.mode === "ONLINE" ? "Online" : "Offline"}</span>
             </div>
-            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
-              <span>{scheduleText || "Chưa có lịch"}</span>
-              <span>{fmtDate(c.startDate)} → {fmtDate(c.endDate)}</span>
-              <span>GV: <b>{c.teacher?.fullName ?? "-"}</b></span>
-              <span>Trợ giảng: <b>{c.assistant?.fullName ?? "-"}</b></span>
-              <span>Giáo vụ: <b>{c.coordinator?.fullName ?? "-"}</b></span>
-              <span>Phòng: <b>{roomLabel(c.room) ?? "-"}</b></span>
+            <div className="mt-1 space-y-0.5 text-sm text-slate-600">
+              <div>{scheduleText || "Chưa có lịch"}</div>
+              <div>{fmtDate(c.startDate)} → {fmtDate(c.endDate)}</div>
             </div>
+            <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:flex sm:flex-wrap sm:gap-x-6">
+              {([["Giáo viên", c.teacher?.fullName], ["Trợ giảng", c.assistant?.fullName], ["Giáo vụ", c.coordinator?.fullName], ["Phòng", roomLabel(c.room)]] as const).map(([k, v]) => (
+                <div key={k} className="min-w-0"><dt className="text-[11px] uppercase tracking-wide text-slate-500">{k}</dt><dd className="truncate font-medium">{v ?? "-"}</dd></div>
+              ))}
+            </dl>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <DialogButton wide variant="secondary" label="Nhập danh sách học viên" title="Nhập danh sách học viên & cấp tài khoản">
-              <ImportStudents classId={id} />
-            </DialogButton>
-            <DialogButton label="+ Ghi danh học viên" title="Ghi danh học viên vào lớp">
-              <EnrollForm classId={id} />
-            </DialogButton>
-            {c.gradeTemplate && <Link href={`${base}/diem`} className="inline-flex h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50">Nhập điểm</Link>}
-            <Link href="/lop-hoc" className="inline-flex h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50">← Danh sách</Link>
+          <div className="flex w-full items-center gap-2 md:w-auto md:flex-wrap">
+            <div className="hidden md:block">
+              <DialogButton wide variant="secondary" label="Nhập danh sách học viên" title="Nhập danh sách học viên & cấp tài khoản">
+                <ImportStudents classId={id} />
+              </DialogButton>
+            </div>
+            <div className="min-w-0 flex-1 md:flex-none [&>button]:w-full md:[&>button]:w-auto">
+              <DialogButton label="+ Ghi danh học viên" title="Ghi danh học viên vào lớp">
+                <EnrollForm classId={id} />
+              </DialogButton>
+            </div>
+            {c.gradeTemplate && <Link href={`${base}/diem`} className="hidden h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50 md:inline-flex">Nhập điểm</Link>}
+            <Link href="/lop-hoc" className="hidden h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50 md:inline-flex">← Danh sách</Link>
             <details className="relative">
               <summary className="inline-flex h-9 cursor-pointer list-none items-center gap-1 rounded-md border bg-white px-3 text-sm hover:bg-slate-50"><MoreHorizontal className="size-4" /> Khác</summary>
-              <div className="absolute right-0 z-20 mt-1 w-64 space-y-1 rounded-md border bg-white p-2 shadow-lg">
-                <ActionForm action={classAccounts} submit="Cấp lại mật khẩu cả lớp (để in)" reset={false} className={menuForm}><input type="hidden" name="classId" value={id} /></ActionForm>
+              <div className="absolute right-0 z-20 mt-1 w-[min(18rem,calc(100vw-3rem))] space-y-1 rounded-md border bg-white p-2 shadow-lg">
+                {/* Điện thoại: các thao tác phụ gom vào menu này cho gọn */}
+                <div className="space-y-1 md:hidden">
+                  <div className="[&>button]:w-full"><DialogButton wide variant="secondary" label="Nhập danh sách học viên" title="Nhập danh sách học viên & cấp tài khoản"><ImportStudents classId={id} /></DialogButton></div>
+                  {c.gradeTemplate && <Link href={`${base}/diem`} className="block rounded-md border px-3 py-2 text-center text-sm hover:bg-slate-50">Nhập điểm</Link>}
+                  <Link href="/lop-hoc" className="block rounded-md border px-3 py-2 text-center text-sm hover:bg-slate-50">← Danh sách lớp</Link>
+                </div>
+                <ActionForm action={classAccounts} submit="Cấp lại mật khẩu cả lớp (để in)" block reset={false} className={menuForm}><input type="hidden" name="classId" value={id} /></ActionForm>
                 {c.gradeTemplate && <a href={`/api/export/grades?classId=${id}`} className="block rounded-md border px-3 py-2 text-center text-sm hover:bg-slate-50">Xuất bảng điểm (Excel)</a>}
-                {me.role === "ADMIN" && <ActionForm action={deleteClass} submit="Xoá lớp" danger confirmText="Xoá hẳn lớp này?" className={menuForm}><input type="hidden" name="id" value={id} /></ActionForm>}
+                {me.role === "ADMIN" && <ActionForm action={deleteClass} submit="Xoá lớp" block danger confirmText="Xoá hẳn lớp này?" className={menuForm}><input type="hidden" name="id" value={id} /></ActionForm>}
               </div>
             </details>
           </div>
@@ -156,7 +167,48 @@ export default async function ClassDetail({ params, searchParams }: { params: Pr
         ]);
         return (
           <div className="space-y-3">
-            <Table head={["Học viên", "Trạng thái", "Tiến độ", "Phụ huynh", "Thao tác"]}>
+            <div className="space-y-2 md:hidden">
+              {list.map((e) => {
+                const left = e.totalSessions - e.usedSessions;
+                const pct = Math.min(100, Math.round((e.usedSessions / Math.max(e.totalSessions, 1)) * 100));
+                const hue = [...e.studentId].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 0);
+                const dot = e.status === "ACTIVE" ? "bg-green-500" : e.status === "PAUSED" ? "bg-yellow-400" : "bg-slate-400";
+                const text = e.status === "ACTIVE" ? "text-green-700" : e.status === "PAUSED" ? "text-yellow-700" : "text-slate-500";
+                return (
+                  <div key={e.id} className={`rounded-xl border bg-white p-3 ${e.status === "DROPPED" ? "opacity-60" : ""}`}>
+                    <div className="flex items-center gap-3">
+                      <span className="grid size-10 shrink-0 place-items-center rounded-full text-sm font-bold" style={{ background: `hsl(${hue} 70% 90%)`, color: `hsl(${hue} 60% 25%)` }}>{e.student.fullName.split(" ").pop()?.[0]}</span>
+                      <div className="min-w-0 flex-1">
+                        <Link className="block truncate font-semibold hover:text-orange-700" href={`/hoc-vien/${e.studentId}`}>{e.student.fullName}</Link>
+                        <div className="truncate text-xs text-slate-500">{e.student.code}{e.student.phone ? ` · ${e.student.phone}` : ""}</div>
+                      </div>
+                      <span className={`flex shrink-0 items-center gap-1.5 text-xs font-semibold ${text}`}><i className={`inline-block size-2 rounded-full ${dot}`} />{EN[e.status]}</span>
+                    </div>
+                    <div className="mt-2.5 flex items-center gap-2">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-orange-500" style={{ width: `${pct}%` }} /></div>
+                      <span className="shrink-0 text-xs tabular-nums text-slate-600">{e.usedSessions}/{e.totalSessions}{e.status === "ACTIVE" && left <= 3 ? ` · còn ${Math.max(left, 0)}` : ""}</span>
+                    </div>
+                    {e.student.parent && <div className="mt-1.5 truncate text-xs text-slate-500">PH: {e.student.parent.fullName}{e.student.parent.phone ? ` · ${e.student.parent.phone}` : ""}</div>}
+                    {e.status === "ACTIVE" && (
+                      <div className="mt-3 grid grid-cols-3 gap-2">
+                        <DialogButton variant="secondary" block label="Đổi lớp" title={`Đổi lớp · ${e.student.fullName}`}>
+                          <ActionForm action={transferStudent} submit="Chuyển lớp" className="flex flex-col gap-3 [&>button]:self-start">
+                            <input type="hidden" name="id" value={e.id} />
+                            <p className="text-sm text-slate-600">Giữ nguyên số buổi còn lại ({Math.max(left, 0)} buổi). Chỉ chuyển được sang lớp cùng khoá{c.course ? ` "${c.course.name}"` : ""}.</p>
+                            <Field label="Chuyển sang lớp"><select name="toClassId" className={inputCls + " w-full"}><option value="">-- chọn lớp --</option>{others.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</select>{!others.length && <span className="text-xs text-red-600">Không có lớp nào khác cùng khoá.</span>}</Field>
+                          </ActionForm>
+                        </DialogButton>
+                        <ActionForm action={setEnrollment} submit="Bảo lưu" block className="contents"><input type="hidden" name="id" value={e.id} /><input type="hidden" name="status" value="PAUSED" /></ActionForm>
+                        <ActionForm action={setEnrollment} submit="Cho nghỉ" block danger confirmText="Cho học viên nghỉ lớp này?" className="contents"><input type="hidden" name="id" value={e.id} /><input type="hidden" name="status" value="DROPPED" /></ActionForm>
+                      </div>
+                    )}
+                    {e.status === "PAUSED" && <div className="mt-3"><ActionForm action={setEnrollment} submit="Học lại" block className="contents"><input type="hidden" name="id" value={e.id} /><input type="hidden" name="status" value="ACTIVE" /></ActionForm></div>}
+                  </div>
+                );
+              })}
+              {!list.length && <p className="rounded-lg border bg-white py-8 text-center text-sm text-slate-500">Lớp chưa có học viên.</p>}
+            </div>
+            <div className="hidden md:block">            <Table head={["Học viên", "Trạng thái", "Tiến độ", "Phụ huynh", "Thao tác"]}>
               {list.map((e) => {
                 const left = e.totalSessions - e.usedSessions;
                 const pct = Math.min(100, Math.round((e.usedSessions / Math.max(e.totalSessions, 1)) * 100));
@@ -204,7 +256,7 @@ export default async function ClassDetail({ params, searchParams }: { params: Pr
                 );
               })}
               {!list.length && <tr><td colSpan={5} className="py-8 text-center text-slate-500">Lớp chưa có học viên.</td></tr>}
-            </Table>
+            </Table></div>
             <Pagination total={enrollTotal} page={pg.page} size={pg.size} path={base} params={{ tab: "students", size: sp.size }} />
           </div>
         );
