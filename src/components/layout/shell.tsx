@@ -12,12 +12,12 @@ import { getUnreadCount } from "@/lib/unread";
 
 const isActive = (path: string, href: string) => (href === "/" ? path === "/" : path === href || path.startsWith(href + "/"));
 
-function Brand({ name, logo }: { name: string; logo: string }) {
+function Brand({ name, logo, sub = "Quản lý trung tâm" }: { name: string; logo: string; sub?: string }) {
   return (
     <div className="flex items-center gap-3 px-4 py-4 border-b sb-line">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {logo ? <img src={logo} alt="" className="h-9 w-9 rounded-md object-cover shrink-0" /> : <div className="h-9 w-9 rounded-md bg-white/20 grid place-items-center font-bold shrink-0">{name.slice(0, 1).toUpperCase()}</div>}
-      <div className="min-w-0 leading-tight hidden lg:block"><div className="text-[13px] font-semibold truncate">{name}</div><div className="text-xs sb-muted">Quản lý trung tâm</div></div>
+      <div className="min-w-0 leading-tight hidden lg:block"><div className="text-[13px] font-semibold truncate">{name}</div><div className="text-xs sb-muted">{sub}</div></div>
     </div>
   );
 }
@@ -110,7 +110,7 @@ export function Shell({ role, userName, name, logo, unread, mustChange, renewOnl
   return (
     <div className="min-h-screen">
       <aside className="no-print theme-sidebar fixed inset-y-0 left-0 z-30 hidden w-16 flex-col md:flex lg:w-60" style={{ color: "var(--sb-fg)" }}>
-        <Brand name={name} logo={logo} />
+        <Brand name={name} logo={logo} sub={role === "SUPERADMIN" ? "Quản trị nền tảng" : undefined} />
         <nav className="flex-1 overflow-y-auto p-3" aria-label="Điều hướng chính"><Links groups={groups} path={path} badges={badges} compact /></nav>
         <div className="border-t sb-line p-3 text-xs sb-muted hidden lg:block truncate">{userName} · {ROLE_LABEL[role]}</div>
       </aside>
@@ -170,7 +170,7 @@ export function Shell({ role, userName, name, logo, unread, mustChange, renewOnl
         <div className="fixed inset-0 z-40 md:hidden" onClick={() => setDrawer(false)}>
           <div className="absolute inset-0 bg-black/40" />
           <aside onClick={(e) => e.stopPropagation()} className="theme-sidebar absolute inset-y-0 left-0 flex w-72 max-w-[85%] flex-col" style={{ color: "var(--sb-fg)" }}>
-            <div className="flex items-center justify-between pr-2"><Brand name={name} logo={logo} /><button onClick={() => setDrawer(false)} className="p-2"><X className="size-5" /></button></div>
+            <div className="flex items-center justify-between pr-2"><Brand name={name} logo={logo} sub={role === "SUPERADMIN" ? "Quản trị nền tảng" : undefined} /><button onClick={() => setDrawer(false)} className="p-2"><X className="size-5" /></button></div>
             <nav className="flex-1 overflow-y-auto p-3"><Links groups={groups} path={path} badges={badges} onNavigate={() => setDrawer(false)} /></nav>
           </aside>
         </div>

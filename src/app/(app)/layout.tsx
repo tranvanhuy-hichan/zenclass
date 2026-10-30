@@ -14,7 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (me.role === "SUPERADMIN") {
     const u = await rootDb.user.findUnique({ where: { id: me.id }, select: { mustChangePwd: true, isActive: true } });
     if (!u?.isActive) redirect("/login");
-    return <Shell role={me.role} userName={me.name} name="Quản trị nền tảng" logo="/logo.png" unread={0} mustChange={!!u.mustChangePwd}>{children}</Shell>;
+    return <Shell role={me.role} userName={me.name} name="ZenClass" logo="/logo.png" unread={0} mustChange={!!u.mustChangePwd}>{children}</Shell>;
   }
 
   const tenant = me.tenantId ? await getTenant(me.tenantId) : null;

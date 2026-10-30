@@ -30,7 +30,7 @@ export function LoginForm({ name, logo }: { name: string; logo: string }) {
             <div className="theme-sidebar grid size-16 place-items-center rounded-2xl text-2xl font-bold shadow-md" style={{ color: "var(--sb-fg)" }}>{name.slice(0, 1).toUpperCase()}</div>
           )}
           <h1 className="mt-4 text-xl font-semibold">{name}</h1>
-          <p className="mt-1 text-sm text-slate-500">Hệ thống quản lý trung tâm</p>
+          <p className="mt-1 text-sm text-slate-500">Quản lý trung tâm gọn gàng, nhẹ nhàng</p>
         </div>
 
         <form onSubmit={submit} className="space-y-5 rounded-2xl border bg-white p-7 shadow-lg">
