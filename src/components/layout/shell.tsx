@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "next-auth/react";
-import { ArrowLeft, Bell, ChevronDown, ChevronRight, KeyRound, LogOut, Menu, X } from "lucide-react";
+import { ArrowLeft, Bell, ChevronDown, ChevronRight, KeyRound, Landmark, LogOut, Menu, X } from "lucide-react";
 import clsx from "clsx";
 import { NAV, ROLE_LABEL, titleOf, type NavGroup, type NavItem } from "@/lib/nav";
 import type { Role } from "@/lib/guard";
@@ -73,17 +73,19 @@ function Links({ groups, path, badges, onNavigate, compact }: { groups: NavGroup
   );
 }
 
-export function Shell({ role, userName, name, logo, unread, mustChange, children }: { role: Role; userName: string; name: string; logo: string; unread: number; mustChange: boolean; children: React.ReactNode }) {
+export function Shell({ role, userName, name, logo, unread, mustChange, renewOnly = false, children }: { role: Role; userName: string; name: string; logo: string; unread: number; mustChange: boolean; renewOnly?: boolean; children: React.ReactNode }) {
   const path = usePathname();
   const router = useRouter();
-  const groups = NAV[role];
+  // Gói đã hết hạn: chỉ còn trang gia hạn (và đổi mật khẩu).
+  const groups = renewOnly ? [{ items: [{ href: "/goi-dich-vu", label: "Gia hạn gói dịch vụ", icon: Landmark }] }] : NAV[role];
   const badges = { "/thong-bao": unread };
   const [drawer, setDrawer] = useState(false);
   const [menu, setMenu] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const locked = mustChange && path !== "/doi-mat-khau";
+  const renewBlocked = renewOnly && path !== "/goi-dich-vu" && path !== "/doi-mat-khau";
+  const locked = (mustChange && path !== "/doi-mat-khau") || renewBlocked;
   useEffect(() => setDrawer(false), [path]);
-  useEffect(() => { if (locked) router.replace("/doi-mat-khau"); }, [locked, router]);
+  useEffect(() => { if (locked) router.replace(renewBlocked && !(mustChange && path !== "/doi-mat-khau") ? "/goi-dich-vu" : "/doi-mat-khau"); }, [locked, renewBlocked, mustChange, path, router]);
   useEffect(() => {
     const h = (e: MouseEvent) => ref.current && !ref.current.contains(e.target as Node) && setMenu(false);
     document.addEventListener("mousedown", h);
@@ -142,7 +144,7 @@ export function Shell({ role, userName, name, logo, unread, mustChange, children
         {mustChange && path !== "/doi-mat-khau" && (
           <div className="no-print bg-yellow-100 px-4 py-2 text-sm text-yellow-900">Bạn đang dùng mật khẩu tạm thời — hãy đổi mật khẩu để tiếp tục sử dụng hệ thống.</div>
         )}
-        <main className="w-full flex-1 min-w-0 p-4 pb-24 md:p-6 md:pb-6 lg:px-8">{locked ? <p className="text-sm text-slate-500">Đang chuyển tới trang đổi mật khẩu...</p> : children}</main>
+        <main className="w-full flex-1 min-w-0 p-4 pb-24 md:p-6 md:pb-6 lg:px-8">{locked ? <p className="text-sm text-slate-500">Đang chuyển trang...</p> : children}</main>
       </div>
 
       {/* Mobile: thanh dưới + ngăn kéo */}

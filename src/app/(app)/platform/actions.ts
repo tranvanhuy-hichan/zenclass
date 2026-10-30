@@ -7,7 +7,7 @@ import { wrap, str, int } from "@/lib/action";
 import { createUser, resetPassword } from "@/server/accounts";
 import { addMonths, getPlatformCfg, PLAN_ORDER, type PlanCode, type PlatformCfg } from "@/lib/plans";
 import { applyOrder } from "@/server/orders";
-import { appUrl, confirmWebhook, platformKeys } from "@/lib/payos";
+import { appUrl, cancelPaymentLink, confirmWebhook, platformKeys } from "@/lib/payos";
 import { getSettings, saveSettings } from "@/lib/settings";
 
 const RESERVED = new Set(["admin", "api", "www", "app", "platform", "login", "superadmin", "root", "static"]);
@@ -81,9 +81,17 @@ export const deleteTenant = wrap(async (fd) => {
   redirect("/platform");
 });
 
+/** Huỷ link thanh toán PayOS của đơn (khi xác nhận tay hoặc huỷ đơn) để khách không trả tiền thêm vào link cũ. */
+async function closeOrderLink(orderId: string) {
+  const o = await rootDb.tenantOrder.findUnique({ where: { id: orderId } });
+  const keys = platformKeys();
+  if (o?.payosOrderCode && keys) await cancelPaymentLink(keys, o.payosOrderCode).catch(() => {});
+}
+
 export const confirmOrder = wrap(async (fd) => {
   await assertRole("SUPERADMIN");
   const r = await applyOrder(str(fd, "id"));
+  await closeOrderLink(str(fd, "id"));
   revalidatePath("/platform", "layout");
   return r.already ? "Đơn này đã được xác nhận trước đó" : `Đã xác nhận, ${r.name} đã được cập nhật gói và hạn dùng`;
 });
@@ -93,6 +101,7 @@ export const cancelOrder = wrap(async (fd) => {
   const o = await rootDb.tenantOrder.findUniqueOrThrow({ where: { id: str(fd, "id") } });
   if (o.status !== "PENDING") throw new Error("Chỉ huỷ được đơn đang chờ thanh toán");
   await rootDb.tenantOrder.update({ where: { id: o.id }, data: { status: "CANCELLED" } });
+  await closeOrderLink(o.id);
   revalidatePath("/platform", "layout");
 });
 

@@ -16,7 +16,7 @@ export const authOptions: NextAuthOptions = {
         if (!u || !u.isActive) return null;
         const tenant = u.tenantId ? await db.tenant.findUnique({ where: { id: u.tenantId } }) : null;
         if (u.role !== "SUPERADMIN" && !tenant) return null;
-        if (tenant && (tenant.status !== "ACTIVE" || (tenant.expiresAt && tenant.expiresAt < new Date()))) throw new Error("TENANT_SUSPENDED");
+        if (tenant && tenant.status !== "ACTIVE") throw new Error("TENANT_SUSPENDED"); // hết hạn vẫn cho vào để quản trị viên gia hạn
         if (u.lockedUntil && u.lockedUntil > new Date()) return null;
         const ok = await bcrypt.compare(c.password, u.passwordHash);
         if (!ok) {

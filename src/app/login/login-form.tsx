@@ -15,7 +15,7 @@ export function LoginForm({ name, logo }: { name: string; logo: string }) {
     const r = await signIn("credentials", { username: f.get("username"), password: f.get("password"), redirect: false });
     if (r?.ok) { window.location.href = "/"; return; }
     setBusy(false);
-    setErr(r?.error === "TENANT_SUSPENDED" ? "Trung tâm đã hết hạn hoặc bị tạm khoá. Vui lòng liên hệ đơn vị cung cấp." : "Sai tên đăng nhập hoặc mật khẩu");
+    setErr(r?.error === "TENANT_SUSPENDED" ? "Trung tâm đang bị tạm khoá. Vui lòng liên hệ đơn vị cung cấp." : "Sai tên đăng nhập hoặc mật khẩu");
   }
 
   return (

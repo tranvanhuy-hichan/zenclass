@@ -1,4 +1,5 @@
 "use server";
+import { cancelPendingLinks } from "@/server/pay-cancel";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
@@ -54,6 +55,7 @@ export const addPayment = wrap(async (fd) => {
   const method = (["CASH", "BANK", "QR"].includes(str(fd, "method")) ? str(fd, "method") : "CASH") as "CASH" | "BANK" | "QR";
   await db.payment.create({ data: { invoiceId, amount, method, receivedBy: me.id } });
   await refreshInvoice(invoiceId);
+  await cancelPendingLinks(invoiceId); // link PayOS cũ không còn đúng số tiền nợ
   await notifyStudent(inv.studentId, "PAYMENT", "Đã nhận học phí", `Trung tâm đã nhận ${amount.toLocaleString("vi-VN")}đ cho phiếu ${inv.code}. Cảm ơn!`);
   await audit(me.id, "payment", "Invoice", invoiceId, { amount });
   revalidatePath(`/tai-chinh/${invoiceId}`);
@@ -65,6 +67,7 @@ export const voidInvoice = wrap(async (fd) => {
   const id = str(fd, "id");
   if (await db.payment.count({ where: { invoiceId: id } })) throw new Error("Phiếu đã có thanh toán, không thể huỷ");
   await db.invoice.update({ where: { id }, data: { status: "VOID" } });
+  await cancelPendingLinks(id);
   await audit(me.id, "void", "Invoice", id);
   revalidatePath(`/tai-chinh/${id}`);
   revalidatePath("/tai-chinh");

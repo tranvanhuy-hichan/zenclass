@@ -1,7 +1,7 @@
 "use server";
 import { randomInt } from "crypto";
 import { revalidatePath } from "next/cache";
-import { db, rootDb } from "@/lib/db";
+import { currentTenantId, db, rootDb } from "@/lib/db";
 import { assertRole } from "@/lib/guard";
 import { wrap, str, int } from "@/lib/action";
 import { appUrl, cancelPaymentLink, createPaymentLink, getPaymentInfo, platformKeys } from "@/lib/payos";
@@ -16,6 +16,13 @@ export const createOrder = wrap(async (fd) => {
   const months = int(fd, "months", 1);
   if (!PLAN_ORDER.includes(plan) || !cfg.plans[plan].sellable) throw new Error("Gói không hợp lệ");
   if (!(DURATIONS as readonly number[]).includes(months)) throw new Error("Thời hạn không hợp lệ");
+  const t = await rootDb.tenant.findUniqueOrThrow({ where: { id: (await currentTenantId())! } });
+  const cur = cfg.plans[t.plan as PlanCode];
+  if (t.expiresAt && t.expiresAt > new Date() && plan !== t.plan && cfg.plans[plan].monthlyPrice < (cur?.monthlyPrice ?? 0))
+    throw new Error(`Gói ${cur.name} của bạn còn hạn. Bạn chỉ có thể gia hạn cùng gói hoặc nâng cấp lên gói cao hơn; muốn chuyển sang gói thấp hơn, hãy đợi hết hạn.`);
+  const [students, branches] = await Promise.all([db.student.count({ where: { dropped: false } }), db.branch.count()]);
+  if (students > cfg.plans[plan].maxStudents) throw new Error(`Gói ${cfg.plans[plan].name} chỉ cho tối đa ${cfg.plans[plan].maxStudents} học viên, trung tâm đang có ${students}. Hãy chọn gói lớn hơn.`);
+  if (branches > cfg.plans[plan].maxBranches) throw new Error(`Gói ${cfg.plans[plan].name} chỉ cho tối đa ${cfg.plans[plan].maxBranches} cơ sở, trung tâm đang có ${branches}. Hãy chọn gói lớn hơn.`);
   if (await db.tenantOrder.count({ where: { status: "PENDING" } }) >= 3) throw new Error("Bạn đang có nhiều đơn chờ thanh toán. Hãy thanh toán hoặc huỷ bớt trước khi tạo đơn mới.");
   const { total } = priceFor(cfg, plan, months);
   for (let i = 0; i < 6; i++) {
