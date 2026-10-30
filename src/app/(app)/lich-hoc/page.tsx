@@ -166,7 +166,7 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
         )}
         {tab("matrix", <><span className="md:hidden">Theo ngày</span><span className="hidden md:inline">Theo lớp</span></>, Table2)}{tab("list", "Danh sách", LayoutList)}
         {canFilter && (
-          <AutoForm className="w-full md:ml-auto md:flex md:w-auto md:flex-wrap md:items-center md:gap-2" resets={{ branch: ["class", "room", "teacher"] }}>
+          <AutoForm className="contents md:ml-auto md:flex md:flex-wrap md:items-center md:gap-2" resets={{ branch: ["class", "room", "teacher"] }}>
             <input type="hidden" name="view" value={view} /><input type="hidden" name="w" value={isoDate(base)} />{hasMine && <input type="hidden" name="scope" value={scope} />}
             <MobileCollapse active={[fBranch, fRoom, fClass, fTeacher].filter(Boolean).length}>
             <select name="branch" defaultValue={fBranch} className={inputCls} aria-label="Cơ sở"><option value="">Tất cả cơ sở</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
