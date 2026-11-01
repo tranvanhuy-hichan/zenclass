@@ -1,7 +1,5 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
-import fontkit from "@pdf-lib/fontkit";
+import { rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { createPdf, wrapText } from "@/server/pdf-kit";
 import { fmtDate, moneyToWords } from "@/lib/format";
 
 const METHOD = { CASH: "Tiền mặt", BANK: "Chuyển khoản", QR: "Quét QR" } as const;
@@ -20,14 +18,11 @@ export type ReceiptData = {
   receivedAmount: number; // số tiền của biên lai này (một khoản thu hoặc tổng đã thu)
 };
 
-const fontFile = (n: string) => readFile(path.join(process.cwd(), "src/assets/fonts", n));
 const money = (n: number) => n.toLocaleString("vi-VN") + " đ";
 
 /** Biên lai thu tiền học phí, khổ A4, font nhúng đủ dấu tiếng Việt. */
 export async function buildReceiptPdf(d: ReceiptData): Promise<Uint8Array> {
-  const pdf = await PDFDocument.create();
-  pdf.registerFontkit(fontkit);
-  const [reg, bold] = await Promise.all([pdf.embedFont(await fontFile("DejaVuSans.ttf"), { subset: true }), pdf.embedFont(await fontFile("DejaVuSans-Bold.ttf"), { subset: true })]);
+  const { pdf, reg, bold } = await createPdf();
   pdf.setTitle(`Biên lai ${d.no}`);
   pdf.setProducer("ZenClass");
   pdf.setCreationDate(new Date());
@@ -41,16 +36,7 @@ export async function buildReceiptPdf(d: ReceiptData): Promise<Uint8Array> {
   const right = (s: string, xr: number, size: number, f: PDFFont = reg) => page.drawText(s, { x: xr - f.widthOfTextAtSize(s, size), y, size, font: f, color: ink });
   const center = (s: string, size: number, f: PDFFont = bold) => page.drawText(s, { x: (W - f.widthOfTextAtSize(s, size)) / 2, y, size, font: f, color: ink });
   const rule = (yy: number, c = line) => page.drawLine({ start: { x: M, y: yy }, end: { x: R, y: yy }, thickness: 0.7, color: c });
-  const wrap = (s: string, f: PDFFont, size: number, maxW: number) => {
-    const out: string[] = [];
-    let cur = "";
-    for (const w of s.split(/\s+/)) {
-      const t = cur ? `${cur} ${w}` : w;
-      if (f.widthOfTextAtSize(t, size) > maxW && cur) { out.push(cur); cur = w; } else cur = t;
-    }
-    if (cur) out.push(cur);
-    return out.length ? out : [""];
-  };
+  const wrap = wrapText;
 
   // ===== Đầu trang: thông tin đơn vị thu =====
   for (const l of wrap(d.center.name.toUpperCase(), bold, 12, 330)) { text(l, M, 12, bold); y -= 16; }

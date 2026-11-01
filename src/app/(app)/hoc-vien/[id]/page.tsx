@@ -85,7 +85,7 @@ export default async function StudentDetail({ params, searchParams }: { params: 
           </div>
           {staff && (
             <>
-              <Link href={`/hoc-vien/${s.id}/in-lich`} target="_blank" className="inline-flex h-9 flex-1 items-center justify-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50 md:flex-none">In lịch học</Link>
+              <a href={`/api/hoc-vien/${s.id}/lich-pdf`} target="_blank" rel="noreferrer" className="inline-flex h-9 flex-1 items-center justify-center rounded-md border bg-white px-3 text-sm hover:bg-slate-50 md:flex-none">Tải lịch học PDF</a>
               <details className="relative min-w-0 flex-1 md:flex-none">
                 <summary className="inline-flex h-9 w-full cursor-pointer list-none items-center justify-center gap-1 rounded-md border bg-white px-3 text-sm hover:bg-slate-50 md:w-auto"><MoreHorizontal className="size-4" /> Khác</summary>
                 <div className="absolute right-0 z-20 mt-1 w-56 space-y-1 rounded-md border bg-white p-2 shadow-lg">
