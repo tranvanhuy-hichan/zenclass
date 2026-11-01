@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { CalendarClock, CheckCircle2, CircleDollarSign, Wallet } from "lucide-react";
+import { CalendarClock, CheckCircle2, CircleDollarSign, FileDown, Wallet } from "lucide-react";
 import { db } from "@/lib/db";
 import { ActionForm } from "@/components/action-form";
 import { DialogButton } from "@/components/dialog";
 import { Card, Field, inputCls, Title } from "@/components/ui";
-import { PrintButton } from "@/components/print-button";
 import { getSettings } from "@/lib/settings";
 import { vietQrUrl } from "@/lib/vietqr";
 import { getTenantPayos } from "@/lib/tenant-payos";
@@ -44,7 +43,9 @@ export async function InvoiceDetail({ inv, staff, admin, back }: { inv: Inv; sta
     <div className="space-y-4">
       <Title right={
         <>
-          <PrintButton />
+          {inv.payments.length > 0 && (
+            <a href={`/api/hoa-don/${inv.id}/pdf`} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-md border bg-white px-4 text-sm hover:bg-slate-50"><FileDown className="size-4" />Tải biên lai PDF</a>
+          )}
           {staff && inv.status !== "VOID" && owed > 0 && (
             <DialogButton label="+ Ghi nhận thu tiền" title={`Thu tiền · ${inv.code}`}>
               <ActionForm action={addPayment} submit="Ghi nhận" className={V}>
@@ -112,7 +113,7 @@ export async function InvoiceDetail({ inv, staff, admin, back }: { inv: Inv; sta
           </Card>
 
           {/* ===== Lịch sử thanh toán ===== */}
-          <Card className="p-0 print:hidden">
+          <Card className="p-0">
             <div className="flex items-center justify-between border-b px-4 py-3">
               <h2 className="font-semibold">Lịch sử thanh toán</h2>
               {staff && inv.status !== "VOID" && inv.payments.length === 0 && (
@@ -124,6 +125,7 @@ export async function InvoiceDetail({ inv, staff, admin, back }: { inv: Inv; sta
                 <li key={p.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
                   <span className="grid size-8 place-items-center rounded-full bg-green-100 text-green-700"><CheckCircle2 className="size-4" /></span>
                   <div className="min-w-0 flex-1"><div className="font-semibold tabular-nums text-green-700">+{fmtMoney(p.amount)}</div><div className="text-xs text-slate-500">{METHOD[p.method]} · {fmtDate(p.paidAt)}</div></div>
+                  <a href={`/api/hoa-don/${inv.id}/pdf?payment=${p.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-orange-700 hover:underline"><FileDown className="size-3.5" />Biên lai PDF</a>
                   {admin && <ActionForm action={refundPayment} submit="Hoàn" compact ghost danger confirmText="Hoàn/xoá khoản thu này?" className="inline-flex"><input type="hidden" name="id" value={p.id} /></ActionForm>}
                 </li>
               ))}

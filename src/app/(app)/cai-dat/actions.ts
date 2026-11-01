@@ -16,6 +16,7 @@ export const saveCenter = wrap(async (fd) => {
   const cur = await getSettings();
   await saveSettings({
     ...cur, name: str(fd, "name") || cur.name, maxEditDays: int(fd, "maxEditDays", 7),
+    address: str(fd, "address"), phone: str(fd, "phone"), taxCode: str(fd, "taxCode"),
     bank: { bank: str(fd, "bank").toUpperCase(), account: acc, name: str(fd, "accName").toUpperCase() },
   });
   await audit(me.id, "settings", "Setting");

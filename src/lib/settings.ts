@@ -5,7 +5,7 @@ import { bustSettings } from "@/lib/tenant-cache";
 import { DEFAULT_THEME, sanitizeTheme, type Theme } from "@/lib/theme";
 
 export type Bank = { bank: string; account: string; name: string };
-export type CenterSettings = { name: string; bank: Bank; maxEditDays: number; theme: Theme };
+export type CenterSettings = { name: string; bank: Bank; maxEditDays: number; theme: Theme; address?: string; phone?: string; taxCode?: string };
 
 const DEFAULTS: CenterSettings = {
   name: "Trung tâm của tôi",

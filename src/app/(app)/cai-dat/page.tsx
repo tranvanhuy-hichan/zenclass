@@ -38,6 +38,9 @@ export default async function Settings({ searchParams }: { searchParams: Promise
           <h2 className="font-semibold mb-2">Trung tâm & ngân hàng nhận học phí (VietQR)</h2>
           <ActionForm action={saveCenter} submit="Lưu" reset={false}>
             <Field label="Tên trung tâm"><input name="name" defaultValue={s.name} className={inputCls} /></Field>
+            <Field label="Địa chỉ (in trên biên lai)"><input name="address" defaultValue={s.address ?? ""} className={inputCls + " w-full"} /></Field>
+            <Field label="Số điện thoại (in trên biên lai)"><input name="phone" defaultValue={s.phone ?? ""} className={inputCls} /></Field>
+            <Field label="Mã số thuế (nếu có)"><input name="taxCode" defaultValue={s.taxCode ?? ""} className={inputCls} /></Field>
             <Field label="Mã ngân hàng (SHB, VCB, MB, TCB, ACB...)"><input name="bank" defaultValue={s.bank.bank} className={inputCls + " w-full"} /></Field>
             <Field label="Số tài khoản"><input name="account" defaultValue={s.bank.account} className={inputCls} /></Field>
             <Field label="Tên chủ tài khoản"><input name="accName" defaultValue={s.bank.name} className={inputCls} /></Field>
