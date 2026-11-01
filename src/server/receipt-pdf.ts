@@ -122,6 +122,6 @@ export async function buildReceiptPdf(d: ReceiptData): Promise<Uint8Array> {
 function drawFooter(page: PDFPage, reg: PDFFont, d: ReceiptData, grey: ReturnType<typeof rgb>, line: ReturnType<typeof rgb>) {
   const W = page.getWidth(), M = 48;
   page.drawLine({ start: { x: M, y: 60 }, end: { x: W - M, y: 60 }, thickness: 0.7, color: line });
-  const s = `Biên lai ${d.no} · lập bằng phần mềm ZenClass · có giá trị xác nhận khoản đã thu của ${d.center.name}`;
+  const s = `Biên lai ${d.no} · lập bằng phần mềm ZenClass`;
   page.drawText(s, { x: M, y: 44, size: 8, font: reg, color: grey, maxWidth: W - 2 * M });
 }
